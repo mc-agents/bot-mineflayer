@@ -85,13 +85,24 @@ export const windowTools: ToolDefinition[] = [
 
   defineTool(
     'read-window',
-    'Read every filled slot of the GUI window the bot currently has open.',
+    'Read the window that is currently open, or report that nothing is.',
     {},
     (_args, ctx) => {
       const { bot } = ctx;
-      const view = viewWindow(requireWindow(bot));
+      const window = bot.currentWindow;
 
-      return structured(describeWindow(view), view);
+      /*
+      Nothing being open is a state, not a failure, so it travels as window: null and mcp-server
+      writes the sentence. Throwing here meant each kind of bot had its own wording for the same
+      state, which is what comparing the two kinds found.
+      */
+      if (!window) {
+        return structured('no window is open', { window: null });
+      }
+
+      const view = viewWindow(window);
+
+      return structured(describeWindow(view), { window: view });
     },
   ),
 
