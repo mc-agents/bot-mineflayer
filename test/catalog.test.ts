@@ -44,9 +44,11 @@ const EXPECTED = [
   'read-player-list',
   'read-scoreboard',
   'read-window',
+  'run-command',
   'send-chat',
   'set-stance',
   'smelt-item',
+  'switch-server',
   'use-held-item',
   'wait-for-window',
   'wait-ticks',
@@ -57,8 +59,9 @@ test('the bot implements exactly the tools it is meant to', () => {
 });
 
 /*
-The catalogue has 44 tools routed to a bot; two of them are fabric's. Being unable and being
-unwritten look the same to the server, so the gap has to be deliberate rather than discovered.
+The catalogue routes 46 tools to a bot: 44 either kind can run and two that need fabric. Being
+unable and being unwritten look the same to the server, so the gap has to be deliberate rather
+than discovered.
 */
 test('nothing in the catalogue is left unimplemented by accident', () => {
   assert.deepEqual(unimplementedTools(), []);

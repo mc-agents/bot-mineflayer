@@ -28,8 +28,16 @@ interface Catalog {
 const source = process.argv[2] ?? process.env.CATALOG ?? DEFAULT_CATALOG;
 const catalog = JSON.parse(await readFile(source, 'utf8')) as Catalog;
 
+/*
+A composed tool is half a bot call and half something mcp-server does with its own buffers, so the
+bot implements it like any other. Taking only `rpc` here left run-command and switch-server
+unreported, and a tool a bot does not report is simply treated as absent -- so they went missing
+without anything saying so.
+*/
+const ROUTES_A_BOT_ANSWERS = new Set(['rpc', 'compose']);
+
 const mine = catalog.tools
-  .filter((tool) => tool.route === 'rpc' && tool.kinds.includes(KIND))
+  .filter((tool) => ROUTES_A_BOT_ANSWERS.has(tool.route) && tool.kinds.includes(KIND))
   .sort((a, b) => a.name.localeCompare(b.name));
 
 const entries = mine
