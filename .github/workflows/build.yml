@@ -30,16 +30,19 @@ jobs:
       # base branch is the comparison; on a push it is the commit that was replaced.
       #
       # A force push leaves nothing to compare against: the commit it names is gone from the
-      # repository. Only the consistency half runs there.
+      # repository, and the first push to a branch names the all-zero sha. Only the consistency
+      # half runs in either case.
       - name: version is consistent and was raised
         env:
           FORCED: ${{ github.event.forced }}
           BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          EMPTY_SHA: '0000000000000000000000000000000000000000'
         run: |
-          case "$FORCED$BASE" in
-            true*|''|0000000000000000000000000000000000000000) node scripts/check-version.ts ;;
-            *) node scripts/check-version.ts "$BASE" ;;
-          esac
+          if [ "$FORCED" = true ] || [ -z "$BASE" ] || [ "$BASE" = "$EMPTY_SHA" ]; then
+            node scripts/check-version.ts
+          else
+            node scripts/check-version.ts "$BASE"
+          fi
       - run: pnpm typecheck
       - run: pnpm lint
       - run: pnpm test
