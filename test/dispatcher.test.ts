@@ -21,8 +21,18 @@ function harness(tools = sampleTools(), requireBot: () => Bot = () => STUB_BOT) 
   return { dispatcher, results };
 }
 
+/* Ids are the server's, and it allocates them as integers on one counter per link. */
+let nextId = 0;
+const idOf = new Map<string, number>();
+
 function call(tool: string, args: Record<string, unknown> = {}, deadlineMs = 1_000): CallMessage {
-  return { t: 'call', id: `id-${tool}`, tool, args, deadlineMs };
+  const id = ++nextId;
+  idOf.set(tool, id);
+  return { t: 'call', id, tool, args, deadlineMs };
+}
+
+function idFor(tool: string): number {
+  return idOf.get(tool) ?? -1;
 }
 
 let release: (value: string) => void = () => undefined;
@@ -153,7 +163,7 @@ test('a cancel is answered as cancelled and frees the bot for the next call', as
   const { dispatcher, results } = harness();
 
   dispatcher.call(call('dig-block', {}, 10_000));
-  dispatcher.cancel('id-dig-block', 'the caller went away');
+  dispatcher.cancel(idFor('dig-block'), 'the caller went away');
   await new Promise(setImmediate);
 
   assert.equal(results[0]!.error?.class, 'cancelled');
@@ -165,7 +175,7 @@ test('a cancel is answered as cancelled and frees the bot for the next call', as
 test('a cancel for an id nobody holds is ignored, since it races a completing call', () => {
   const { dispatcher, results } = harness();
 
-  dispatcher.cancel('id-nothing', 'too late');
+  dispatcher.cancel(idFor('never-called'), 'too late');
 
   assert.deepEqual(results, []);
 });

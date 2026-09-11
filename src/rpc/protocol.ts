@@ -57,13 +57,23 @@ export interface HelloMessage {
   features: string[];
 }
 
+/* What a result says about a blob frame it was sent with. Dimensions are for an image. */
+export interface BlobDescriptor {
+  id: string;
+  mime: string;
+  bytes: number;
+  name?: string;
+  width?: number;
+  height?: number;
+}
+
 export interface ResultMessage {
   t: 'result';
-  id: string;
+  id: number;
   ok: boolean;
   text: string;
   data?: unknown;
-  blobs?: string[];
+  blobs?: BlobDescriptor[];
   error?: WireError;
   elapsedMs: number;
 }
@@ -108,7 +118,7 @@ export interface LogMessage {
 
 export interface PongMessage {
   t: 'pong';
-  nonce: string;
+  nonce: number;
   ts: number;
   busy: number;
 }
@@ -141,7 +151,7 @@ export interface HelloErrMessage {
 
 export interface ConnectMessage {
   t: 'connect';
-  id: string;
+  id: number;
   host: string;
   port: number;
   username: string;
@@ -151,7 +161,7 @@ export interface ConnectMessage {
 
 export interface CallMessage {
   t: 'call';
-  id: string;
+  id: number;
   tool: string;
   args: Record<string, unknown>;
   deadlineMs: number;
@@ -160,13 +170,13 @@ export interface CallMessage {
 
 export interface CancelMessage {
   t: 'cancel';
-  id: string;
+  id: number;
   reason: string;
 }
 
 export interface DisconnectMessage {
   t: 'disconnect';
-  id: string;
+  id: number;
   reason: string;
   quitMessage?: string;
 }
@@ -179,14 +189,18 @@ export interface ShutdownMessage {
 
 export interface PingMessage {
   t: 'ping';
-  nonce: string;
+  nonce: number;
   ackEventSeq?: number;
 }
 
-export interface ConfigureMessage {
-  t: 'configure';
-  events?: Partial<Record<EventKind, boolean>>;
-  repeatFlushMs?: number;
+/*
+A breach of the wire contract rather than a tool that failed. The link closes behind it, so there
+is nothing to answer -- only something to log, which is the point of it carrying a code.
+*/
+export interface FaultMessage {
+  t: 'fault';
+  code: string;
+  message: string;
 }
 
 export type ServerMessage =
@@ -198,7 +212,7 @@ export type ServerMessage =
   | DisconnectMessage
   | ShutdownMessage
   | PingMessage
-  | ConfigureMessage;
+  | FaultMessage;
 
 export class ToolError extends Error {
   readonly wire: WireError;

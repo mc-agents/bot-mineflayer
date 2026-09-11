@@ -19,7 +19,7 @@ interface InFlight {
   settle: (error: WireError) => void;
 }
 
-function ok(id: string, output: ToolOutput, startedAt: number): ResultMessage {
+function ok(id: number, output: ToolOutput, startedAt: number): ResultMessage {
   const elapsedMs = Date.now() - startedAt;
 
   return typeof output === 'string'
@@ -27,7 +27,7 @@ function ok(id: string, output: ToolOutput, startedAt: number): ResultMessage {
     : { t: 'result', id, ok: true, text: output.text, data: output.data, elapsedMs };
 }
 
-function failed(id: string, error: WireError, startedAt: number): ResultMessage {
+function failed(id: number, error: WireError, startedAt: number): ResultMessage {
   return { t: 'result', id, ok: false, text: error.message, error, elapsedMs: Date.now() - startedAt };
 }
 
@@ -64,7 +64,7 @@ export class Dispatcher {
   private readonly tools: ReadonlyMap<string, ToolDefinition>;
   private readonly host: ToolHost;
   private readonly send: (result: ResultMessage) => void;
-  private readonly inFlight = new Map<string, InFlight>();
+  private readonly inFlight = new Map<number, InFlight>();
   private readonly outcomes: Record<string, number> = { ok: 0 };
 
   constructor(
@@ -135,7 +135,7 @@ export class Dispatcher {
     void this.run(tool, message, exclusive, startedAt);
   }
 
-  cancel(id: string, reason: string): void {
+  cancel(id: number, reason: string): void {
     /* A cancel that loses the race to a completing call is normal, not a violation. */
     this.inFlight.get(id)?.settle({
       class: 'cancelled',

@@ -232,8 +232,10 @@ export class RpcClient {
       case 'ping':
         this.write({ t: 'pong', nonce: message.nonce, ts: Date.now(), busy: this.dispatcher.busy });
         return;
-      case 'configure':
-        this.events.configure(message);
+      case 'fault':
+        log('error', 'mcp-server closed the link on a protocol fault',
+          { code: message.code, message: message.message });
+        this.socket?.destroy();
         return;
       default:
         log('warn', 'unknown message from mcp-server', { t: (message as { t: string }).t });
@@ -279,7 +281,7 @@ export class RpcClient {
     this.flushTimer.unref();
   }
 
-  private result(id: string, text: string, startedAt: number): ResultMessage {
+  private result(id: number, text: string, startedAt: number): ResultMessage {
     return { t: 'result', id, ok: true, text, elapsedMs: Date.now() - startedAt };
   }
 
