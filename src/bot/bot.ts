@@ -51,7 +51,7 @@ export class BotHost extends EventEmitter<Events> {
 
   private bot: Bot | null = null;
   private spec: JoinSpec | null = null;
-  private state: BotState = 'disconnected';
+  private state: BotState = 'idle';
   private lastError: string | null = null;
 
   get currentState(): BotState {
@@ -145,7 +145,8 @@ export class BotHost extends EventEmitter<Events> {
   quit(reason: string): void {
     const bot = this.bot;
     this.bot = null;
-    this.setState('disconnected', reason);
+    /* Told to leave, so nothing went wrong: the bot is linked and in no world, which is idle. */
+    this.setState('idle', reason);
 
     if (!bot) {
       return;
@@ -293,7 +294,8 @@ export class BotHost extends EventEmitter<Events> {
     });
 
     bot.on('end', (reason) => {
-      if (this.state !== 'disconnected') {
+      /* A deliberate quit already said idle; the end event that follows must not overwrite it. */
+      if (this.state !== 'disconnected' && this.state !== 'idle') {
         this.lastError ??= `disconnected: ${describeError(reason)}`;
         this.setState('disconnected', describeError(reason));
       }

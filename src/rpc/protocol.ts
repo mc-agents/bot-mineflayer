@@ -10,7 +10,12 @@ export type EventKind = 'chat' | 'actionBar' | 'title' | 'dialog' | 'effect';
 
 export const EVENT_KINDS: readonly EventKind[] = ['chat', 'actionBar', 'title', 'dialog', 'effect'];
 
-export type BotState = 'connecting' | 'ready' | 'disconnected' | 'faulted';
+/*
+`idle` is linked and in no world; `disconnected` was in one and is not now. Reporting the first as
+the second sends a reader looking for a kick that never happened, which is what list-bots said
+about every bot in a freshly scaled pool.
+*/
+export type BotState = 'idle' | 'connecting' | 'ready' | 'disconnected' | 'faulted';
 
 /*
 The class decides what the server does with the session, so picking the wrong one is worse than
