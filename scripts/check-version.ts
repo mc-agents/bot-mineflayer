@@ -1,0 +1,94 @@
+import { readFile } from 'node:fs/promises';
+import { execFileSync } from 'node:child_process';
+
+const PACKAGE = 'package.json';
+const RELEASE_PATHS = ['src/', 'scripts/', 'Dockerfile', 'package.json', 'pnpm-lock.yaml'];
+
+function fail(message: string): never {
+  process.stderr.write(`${message}\n`);
+  process.exit(1);
+}
+
+function parse(version: string): [number, number, number] {
+  const match = /^(\d+)\.(\d+)\.(\d+)/.exec(version);
+
+  if (!match) {
+    fail(`"${version}" is not a semantic version`);
+  }
+
+  return [Number(match[1]), Number(match[2]), Number(match[3])];
+}
+
+function compare(left: string, right: string): number {
+  const a = parse(left);
+  const b = parse(right);
+
+  for (let index = 0; index < 3; index += 1) {
+    if (a[index] !== b[index]) {
+      return a[index]! - b[index]!;
+    }
+  }
+
+  return 0;
+}
+
+function previous(path: string, ref: string): string {
+  try {
+    return execFileSync('git', ['show', `${ref}:${path}`], { encoding: 'utf8' });
+  } catch (error) {
+    fail(`cannot read ${path} at ${ref}: ${(error as Error).message}`);
+  }
+}
+
+/*
+A shallow clone has no earlier commit to diff against, and answering "nothing changed" there
+would leave this check passing on every release while enforcing nothing at all.
+*/
+function changedFiles(ref: string): string[] {
+  try {
+    return execFileSync('git', ['diff', '--name-only', ref, 'HEAD'], { encoding: 'utf8' })
+      .split('\n')
+      .filter((line) => line !== '');
+  } catch (error) {
+    fail(
+      `cannot diff against ${ref}: ${(error as Error).message}\n` +
+      'Check out with fetch-depth: 0 so the comparison has history to work with.',
+    );
+  }
+}
+
+const declared = (JSON.parse(await readFile(PACKAGE, 'utf8')) as { version: string }).version;
+
+parse(declared);
+
+const base = process.argv[2];
+
+if (base === undefined) {
+  process.stdout.write(`version ${declared} is a semantic version\n`);
+  process.exit(0);
+}
+
+/*
+Anything that ships has to arrive under a version of its own. Without this the tag keeps its
+0.1.0 root forever and the only thing separating two releases is a timestamp, which says nothing
+about whether upgrading between them is safe.
+*/
+const shipped = changedFiles(base).filter((file) => RELEASE_PATHS.some((prefix) => file.startsWith(prefix)));
+
+if (shipped.length === 0) {
+  process.stdout.write(`version ${declared} is consistent; nothing that ships changed\n`);
+  process.exit(0);
+}
+
+const earlier = (JSON.parse(previous(PACKAGE, base)) as { version: string }).version;
+
+if (compare(declared, earlier) <= 0) {
+  fail(
+    `${shipped.length} file(s) that ship changed, but the version stayed at ${declared} ` +
+    `(was ${earlier}). Raise it: minor when a tool is added, removed, or answers differently, ` +
+    `or when the protocol the bot speaks changes; patch for a fix. Changed: ` +
+    `${shipped.slice(0, 8).join(', ')}${shipped.length > 8 ? ', ...' : ''}`,
+  );
+}
+
+process.stdout.write(`version ${earlier} -> ${declared}\n`);
