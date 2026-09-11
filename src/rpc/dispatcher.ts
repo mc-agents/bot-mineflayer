@@ -4,7 +4,7 @@ import type { ScoreTracker } from '../minecraft/scoreboard.ts';
 import { EXCLUSIVE_TOOLS } from './catalog-hashes.ts';
 import { ToolError } from './protocol.ts';
 import type { CallMessage, ResultMessage, WireError } from './protocol.ts';
-import type { ToolContext, ToolDefinition } from './tool.ts';
+import type { ToolContext, ToolDefinition, ToolOutput } from './tool.ts';
 
 export interface ToolHost {
   requireBot: () => Bot;
@@ -19,8 +19,12 @@ interface InFlight {
   settle: (error: WireError) => void;
 }
 
-function ok(id: string, text: string, startedAt: number): ResultMessage {
-  return { t: 'result', id, ok: true, text, elapsedMs: Date.now() - startedAt };
+function ok(id: string, output: ToolOutput, startedAt: number): ResultMessage {
+  const elapsedMs = Date.now() - startedAt;
+
+  return typeof output === 'string'
+    ? { t: 'result', id, ok: true, text: output, elapsedMs }
+    : { t: 'result', id, ok: true, text: output.text, data: output.data, elapsedMs };
 }
 
 function failed(id: string, error: WireError, startedAt: number): ResultMessage {

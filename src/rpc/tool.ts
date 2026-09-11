@@ -11,10 +11,27 @@ export interface ToolContext {
   signal: AbortSignal;
 }
 
+/*
+A tool that reports game state sends a DTO and lets mcp-server write the sentence. Two kinds of
+bot describing the same scoreboard in two ways would split the agent's behaviour by bot kind, so
+the bot keeps the game knowledge (unwrapping NBT, splitting font segments) and gives up the
+wording. `text` stays as a one-line fallback for anyone reading the wire by hand.
+*/
+export interface StructuredOutput {
+  text: string;
+  data: unknown;
+}
+
+export type ToolOutput = string | StructuredOutput;
+
+export function structured(text: string, data: unknown): StructuredOutput {
+  return { text, data };
+}
+
 export interface ToolDefinition {
   name: string;
   description: string;
-  run: (args: Record<string, unknown>, context: ToolContext) => Promise<string>;
+  run: (args: Record<string, unknown>, context: ToolContext) => Promise<ToolOutput>;
 }
 
 export const coordinateArgs = {
@@ -60,7 +77,7 @@ export function defineTool<Shape extends z.ZodRawShape>(
   name: string,
   description: string,
   shape: Shape,
-  run: (args: z.infer<z.ZodObject<Shape>>, context: ToolContext) => string | Promise<string>,
+  run: (args: z.infer<z.ZodObject<Shape>>, context: ToolContext) => ToolOutput | Promise<ToolOutput>,
 ): ToolDefinition {
   const schema = z.object(shape);
 

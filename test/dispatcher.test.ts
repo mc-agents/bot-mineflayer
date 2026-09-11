@@ -6,7 +6,7 @@ import { ScoreTracker } from '../src/minecraft/scoreboard.ts';
 import { Dispatcher } from '../src/rpc/dispatcher.ts';
 import { botError } from '../src/rpc/protocol.ts';
 import type { CallMessage, ResultMessage } from '../src/rpc/protocol.ts';
-import { defineTool } from '../src/rpc/tool.ts';
+import { defineTool, structured } from '../src/rpc/tool.ts';
 
 const STUB_BOT = {} as Bot;
 
@@ -41,6 +41,10 @@ function sampleTools() {
       release = resolve;
     })),
     defineTool('place-block', 'also exclusive', {}, () => 'placed'),
+    defineTool('read-window', 'answer with a DTO', {}, () => structured('window "Shop", 1 filled slots', {
+      title: 'Shop',
+      filled: [{ slot: 0, name: 'diamond', count: 3, label: null, lore: [] }],
+    })),
   ];
 }
 
@@ -53,6 +57,33 @@ test('a tool that answers sends one result carrying its text', async () => {
   assert.equal(results.length, 1);
   assert.equal(results[0]!.ok, true);
   assert.equal(results[0]!.text, 'said hi');
+});
+
+/*
+The wording of a structured answer belongs to mcp-server, so what the bot owes it is the DTO. The
+text is a fallback for a human reading the wire and is not what the agent will be shown.
+*/
+test('a structured tool sends its DTO as data and keeps the text to one line', async () => {
+  const { dispatcher, results } = harness();
+
+  dispatcher.call(call('read-window'));
+  await new Promise(setImmediate);
+
+  assert.equal(results[0]!.ok, true);
+  assert.equal(results[0]!.text, 'window "Shop", 1 filled slots');
+  assert.deepEqual(results[0]!.data, {
+    title: 'Shop',
+    filled: [{ slot: 0, name: 'diamond', count: 3, label: null, lore: [] }],
+  });
+});
+
+test('a tool that answers with a plain string carries no data at all', async () => {
+  const { dispatcher, results } = harness();
+
+  dispatcher.call(call('echo', { word: 'hi' }));
+  await new Promise(setImmediate);
+
+  assert.equal('data' in results[0]!, false);
 });
 
 /*

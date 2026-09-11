@@ -55,7 +55,9 @@ function summarise(message: Record<string, unknown>): void {
   switch (message.t) {
     case 'result': {
       const head = message.ok === true ? 'ok' : `FAILED [${(message.error as { class?: string })?.class}]`;
-      out(`< result ${String(message.id)} ${head} (${String(message.elapsedMs)}ms)\n${String(message.text)}`);
+      /* A structured tool sends the DTO mcp-server renders, so the DTO is the answer worth seeing. */
+      const data = message.data === undefined ? '' : `\n${JSON.stringify(message.data, null, 2)}`;
+      out(`< result ${String(message.id)} ${head} (${String(message.elapsedMs)}ms)\n${String(message.text)}${data}`);
       return;
     }
     case 'event':
