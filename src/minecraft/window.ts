@@ -75,20 +75,6 @@ export function requireWindow(bot: Bot): Window {
   return window;
 }
 
-export function formatWindow(view: WindowView): string {
-  const header = `window "${view.title}" (type ${view.type}, ${view.slotCount} slots, ` +
-    `container ${view.containerSlots[0]}-${view.containerSlots[1]}, ` +
-    `player inventory ${view.inventorySlots[0]}-${view.inventorySlots[1]})`;
-
-  if (view.filled.length === 0) {
-    return `${header}\nevery slot is empty`;
-  }
-
-  const lines = view.filled.map((slot) => {
-    const label = slot.label === null ? slot.name : `${slot.label} [${slot.name}]`;
-    const lore = slot.lore.length === 0 ? '' : `\n    ${slot.lore.join('\n    ')}`;
-    return `  ${slot.slot}: ${label} x${slot.count}${lore}`;
-  });
-
-  return `${header}\n${lines.join('\n')}`;
+export function describeWindow(view: WindowView): string {
+  return `window "${view.title}", ${view.filled.length} filled slots`;
 }

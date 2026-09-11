@@ -1,10 +1,16 @@
 import * as z from 'zod';
 import { Vec3 } from 'vec3';
-import { type ToolDefinition, coordinateArgs, defineTool, floorCoordinates } from '../rpc/tool.ts';
+import { type ToolDefinition, coordinateArgs, defineTool, floorCoordinates, structured } from '../rpc/tool.ts';
 import { DEFAULT_WALK_TIMEOUT_MS, walkTo } from '../minecraft/navigate.ts';
+import { blockPoint } from '../minecraft/view.ts';
+import type { Point } from '../minecraft/view.ts';
 
 const FLIGHT_TIMEOUT_MS = 20_000;
 const JUMP_HOLD_MS = 250;
+
+export interface PositionView {
+  position: Point;
+}
 
 export const movementTools: ToolDefinition[] = [
   defineTool(
@@ -13,8 +19,12 @@ export const movementTools: ToolDefinition[] = [
     {},
     (_args, ctx) => {
       const { bot } = ctx;
-      const { x, y, z } = bot.entity.position;
-      return `Position: (${Math.floor(x)}, ${Math.floor(y)}, ${Math.floor(z)})`;
+      const position = blockPoint(bot.entity.position);
+
+      return structured(
+        `(${position.x}, ${position.y}, ${position.z})`,
+        { position } satisfies PositionView,
+      );
     },
   ),
 

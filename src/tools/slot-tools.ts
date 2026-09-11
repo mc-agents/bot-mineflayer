@@ -1,8 +1,8 @@
 import * as z from 'zod';
 import { Vec3 } from 'vec3';
-import { type ToolDefinition, coordinateArgs, defineTool, floorCoordinates } from '../rpc/tool.ts';
+import { type ToolDefinition, coordinateArgs, defineTool, floorCoordinates, structured } from '../rpc/tool.ts';
 import { walkTo } from '../minecraft/navigate.ts';
-import { formatWindow, readLabel, requireWindow, viewWindow } from '../minecraft/window.ts';
+import { describeWindow, readLabel, requireWindow, viewWindow } from '../minecraft/window.ts';
 
 const CLICK_BUTTONS = ['left', 'right'] as const;
 
@@ -94,7 +94,9 @@ export const slotTools: ToolDefinition[] = [
 
       await bot.openContainer(block);
 
-      return formatWindow(viewWindow(requireWindow(bot)));
+      const view = viewWindow(requireWindow(bot));
+
+      return structured(describeWindow(view), view);
     },
   ),
 

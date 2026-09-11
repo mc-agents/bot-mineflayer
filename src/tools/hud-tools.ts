@@ -1,7 +1,9 @@
 import * as z from 'zod';
 import type { BossBar, Bot, ScoreBoard } from 'mineflayer';
-import { type ToolDefinition, defineTool } from '../rpc/tool.ts';
+import { type ToolDefinition, defineTool, structured } from '../rpc/tool.ts';
 import { describeSegments, toPlainText, toSegments } from '../minecraft/text.ts';
+import { blockPoint } from '../minecraft/view.ts';
+import type { Point } from '../minecraft/view.ts';
 
 const DISPLAY_SLOTS = ['sidebar', 'list', 'belowName'] as const;
 
@@ -57,6 +59,30 @@ export interface PlayerView {
   self: boolean;
 }
 
+export interface ScoreboardSlotView {
+  slot: string;
+  board: ScoreboardView | null;
+}
+
+export interface BossBarsView {
+  bars: BossBarView[];
+}
+
+export interface PlayerListView {
+  players: PlayerView[];
+}
+
+export interface PlayerStateView {
+  health: number;
+  food: number;
+  saturation: number;
+  experience: { level: number; progress: number; points: number };
+  gameMode: string;
+  dimension: string;
+  position: Point | null;
+  oxygen: number | null;
+}
+
 export function viewScoreboard(board: ScoreboardLike): ScoreboardView {
   const entries = board.items
     .map((item) => ({
@@ -88,33 +114,6 @@ export function viewPlayerList(players: Record<string, PlayerLike>, selfUsername
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
-function formatScoreboard(view: ScoreboardView, slot: string): string {
-  const title = view.title === '' ? '(untitled)' : view.title;
-  const header = `scoreboard "${title}" (${slot}, ${view.entries.length} entries)`;
-
-  if (view.entries.length === 0) {
-    return `${header}\nno entries are on it`;
-  }
-
-  const lines = view.entries.map((entry) => `  ${entry.name}: ${entry.score}`);
-
-  return `${header}\n${lines.join('\n')}`;
-}
-
-function formatBossBar(view: BossBarView): string {
-  const title = view.title === '' ? '(untitled)' : view.title;
-  const percent = Math.round(view.progress * 100);
-
-  return `boss bar "${title}" (${percent}%, ${view.color}, ${view.dividers} segments)`;
-}
-
-function formatPlayer(view: PlayerView): string {
-  const ping = view.ping === null ? 'unknown' : `${view.ping}ms`;
-  const marker = view.self ? ' (this bot)' : '';
-
-  return `  ${view.name}${marker}: ${view.gameMode}, ${ping}`;
-}
-
 export const hudTools: ToolDefinition[] = [
   defineTool(
     'read-scoreboard',
@@ -129,16 +128,17 @@ export const hudTools: ToolDefinition[] = [
       const board: ScoreBoard | undefined = bot.scoreboard[slot];
 
       if (!board) {
-        return `No scoreboard is displayed in the ${slot} slot.`;
+        return structured(`no ${slot} scoreboard`, { slot, board: null } satisfies ScoreboardSlotView);
       }
 
       const view = viewScoreboard(board);
       const tracked = ctx.scores.entriesFor(board.name);
+      const entries = view.entries.length === 0 ? tracked : view.entries;
 
-      return formatScoreboard(
-        { ...view, entries: view.entries.length === 0 ? tracked : view.entries },
+      return structured(`${entries.length} entries`, {
         slot,
-      );
+        board: { ...view, entries },
+      } satisfies ScoreboardSlotView);
     },
   ),
 
@@ -150,11 +150,7 @@ export const hudTools: ToolDefinition[] = [
       const bot = ctx.bot as BossBarHost;
       const bars = bot.bossBars ?? [];
 
-      if (bars.length === 0) {
-        return 'No boss bars are showing.';
-      }
-
-      return bars.map((bar) => formatBossBar(viewBossBar(bar))).join('\n');
+      return structured(`${bars.length} boss bars`, { bars: bars.map(viewBossBar) } satisfies BossBarsView);
     },
   ),
 
@@ -166,11 +162,7 @@ export const hudTools: ToolDefinition[] = [
       const { bot } = ctx;
       const players = viewPlayerList(bot.players, bot.username);
 
-      if (players.length === 0) {
-        return 'The tab list is empty.';
-      }
-
-      return `${players.length} players online\n${players.map(formatPlayer).join('\n')}`;
+      return structured(`${players.length} players`, { players } satisfies PlayerListView);
     },
   ),
 
@@ -183,16 +175,16 @@ export const hudTools: ToolDefinition[] = [
       const position = bot.entity?.position;
       const experience = bot.experience;
 
-      return [
-        `health: ${bot.health} / 20`,
-        `food: ${bot.food} / 20 (saturation ${bot.foodSaturation})`,
-        `health bar: ${Math.round((bot.health / 20) * 100)}%`,
-        `experience: level ${experience.level}, ${Math.round(experience.progress * 100)}% to the next level, ` +
-        `${experience.points} points`,
-        `gameMode: ${bot.game.gameMode} / dimension: ${bot.game.dimension}`,
-        `position: ${position ? `(${Math.floor(position.x)}, ${Math.floor(position.y)}, ${Math.floor(position.z)})` : 'unknown'}`,
-        `oxygen: ${bot.oxygenLevel ?? 'full'} / 20`,
-      ].join('\n');
+      return structured(`health ${bot.health}, food ${bot.food}`, {
+        health: bot.health,
+        food: bot.food,
+        saturation: bot.foodSaturation,
+        experience: { level: experience.level, progress: experience.progress, points: experience.points },
+        gameMode: bot.game.gameMode,
+        dimension: bot.game.dimension,
+        position: position ? blockPoint(position) : null,
+        oxygen: bot.oxygenLevel ?? null,
+      } satisfies PlayerStateView);
     },
   ),
 ];

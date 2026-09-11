@@ -1,11 +1,18 @@
 import * as z from 'zod';
 import type { Bot } from 'mineflayer';
 import type { Window } from 'prismarine-windows';
-import { type ToolDefinition, defineTool } from '../rpc/tool.ts';
-import { formatWindow, requireWindow, viewWindow } from '../minecraft/window.ts';
+import { type ToolDefinition, defineTool, structured } from '../rpc/tool.ts';
+import { describeWindow, requireWindow, viewWindow } from '../minecraft/window.ts';
+import type { WindowView } from '../minecraft/window.ts';
 
 const MAX_PATTERN_LENGTH = 256;
 const OPEN_TIMEOUT_MS = 10_000;
+
+export interface AwaitedWindowView {
+  titlePattern: string | null;
+  timeoutMs: number;
+  window: WindowView | null;
+}
 
 export function compileTitlePattern(source: string | undefined): RegExp | null {
   if (source === undefined) {
@@ -57,22 +64,22 @@ export const windowTools: ToolDefinition[] = [
       const pattern = compileTitlePattern(args.titlePattern);
       const timeoutMs = args.timeoutMs ?? OPEN_TIMEOUT_MS;
 
+      const answer = (window: WindowView | null) => structured(
+        window === null ? `nothing opened within ${timeoutMs}ms` : describeWindow(window),
+        { titlePattern: args.titlePattern ?? null, timeoutMs, window } satisfies AwaitedWindowView,
+      );
+
       if (bot.currentWindow) {
         const open = viewWindow(bot.currentWindow);
 
         if (titleMatches(open.title, pattern)) {
-          return formatWindow(open);
+          return answer(open);
         }
       }
 
       const window = await nextMatchingWindow(bot, pattern, timeoutMs);
 
-      if (!window) {
-        const target = pattern === null ? 'No window' : `No window titled /${args.titlePattern}/`;
-        return `${target} opened within ${timeoutMs}ms.`;
-      }
-
-      return formatWindow(viewWindow(window));
+      return answer(window === null ? null : viewWindow(window));
     },
   ),
 
@@ -82,7 +89,9 @@ export const windowTools: ToolDefinition[] = [
     {},
     (_args, ctx) => {
       const { bot } = ctx;
-      return formatWindow(viewWindow(requireWindow(bot)));
+      const view = viewWindow(requireWindow(bot));
+
+      return structured(describeWindow(view), view);
     },
   ),
 

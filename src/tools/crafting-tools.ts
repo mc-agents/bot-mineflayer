@@ -4,16 +4,42 @@ import type { Block } from 'prismarine-block';
 import type { Recipe } from 'prismarine-recipe';
 import minecraftData from 'minecraft-data';
 import type { IndexedData } from 'minecraft-data';
-import { type ToolDefinition, defineTool } from '../rpc/tool.ts';
+import { type ToolDefinition, defineTool, structured } from '../rpc/tool.ts';
 import { walkTo } from '../minecraft/navigate.ts';
 
 const TABLE_SEARCH_RADIUS = 16;
 const TABLE_REACH = 3;
 const MAX_LISTED_RECIPES = 100;
 
-interface Ingredient {
+export interface Ingredient {
   name: string;
   count: number;
+}
+
+export interface RecipeView {
+  result: Ingredient;
+  ingredients: Ingredient[];
+  missing: Ingredient[];
+  requiresTable: boolean;
+}
+
+/*
+`item` set means the caller asked about one item; unset means the scan of everything craftable,
+which is the only mode that can run out of room and the only one that cares about the table.
+*/
+export interface RecipeListView {
+  item: string | null;
+  tableInReach: boolean;
+  stoppedAt: number | null;
+  recipes: RecipeView[];
+}
+
+export interface CanCraftView {
+  item: string;
+  craftable: boolean;
+  hasRecipe: boolean;
+  missing: Ingredient[];
+  needsTable: boolean;
 }
 
 function itemName(mcData: IndexedData, id: number): string {
@@ -61,18 +87,13 @@ function missingFor(bot: Bot, mcData: IndexedData, recipe: Recipe): Ingredient[]
     .filter(({ count }) => count > 0);
 }
 
-function describeRecipe(mcData: IndexedData, recipe: Recipe, missing: Ingredient[]): string {
-  const ingredients = ingredientsOf(mcData, recipe)
-    .map(({ name, count }) => `${name} x${count}`)
-    .join(', ');
-
-  const status = missing.length === 0
-    ? 'craftable'
-    : `missing ${missing.map(({ name, count }) => `${name} x${count}`).join(', ')}`;
-
-  const table = recipe.requiresTable ? ', needs a crafting table' : '';
-
-  return `${itemName(mcData, recipe.result.id)} x${recipe.result.count} <- ${ingredients} [${status}${table}]`;
+function viewRecipe(mcData: IndexedData, recipe: Recipe, missing: Ingredient[]): RecipeView {
+  return {
+    result: { name: itemName(mcData, recipe.result.id), count: recipe.result.count },
+    ingredients: ingredientsOf(mcData, recipe),
+    missing,
+    requiresTable: recipe.requiresTable,
+  };
 }
 
 async function reachableCraftingTable(bot: Bot, mcData: IndexedData): Promise<Block | null> {
@@ -112,15 +133,15 @@ export const craftingTools: ToolDefinition[] = [
         const item = resolveItem(mcData, args.outputItem);
         const recipes = bot.recipesAll(item.id, null, table);
 
-        if (recipes.length === 0) {
-          return `No recipe produces ${item.name}.`;
-        }
-
-        const lines = recipes.map((recipe) => `- ${describeRecipe(mcData, recipe, missingFor(bot, mcData, recipe))}`);
-        return `Recipes for ${item.name}:\n${lines.join('\n')}`;
+        return structured(`${recipes.length} recipes for ${item.name}`, {
+          item: item.name,
+          tableInReach: table !== null,
+          stoppedAt: null,
+          recipes: recipes.map((recipe) => viewRecipe(mcData, recipe, missingFor(bot, mcData, recipe))),
+        } satisfies RecipeListView);
       }
 
-      const craftable: string[] = [];
+      const craftable: RecipeView[] = [];
 
       for (const item of mcData.itemsArray) {
         if (craftable.length >= MAX_LISTED_RECIPES) {
@@ -128,20 +149,16 @@ export const craftingTools: ToolDefinition[] = [
         }
         const recipes = bot.recipesFor(item.id, null, 1, table);
         if (recipes.length > 0 && recipes[0]) {
-          craftable.push(`- ${describeRecipe(mcData, recipes[0], [])}`);
+          craftable.push(viewRecipe(mcData, recipes[0], []));
         }
       }
 
-      if (craftable.length === 0) {
-        return 'Nothing in the inventory is enough for any recipe.';
-      }
-
-      const suffix = craftable.length >= MAX_LISTED_RECIPES
-        ? `\n(stopped at ${MAX_LISTED_RECIPES} entries)`
-        : '';
-
-      return `Craftable right now${table ? ' (a crafting table is in reach)' : ' (no crafting table in reach)'}:\n` +
-        `${craftable.join('\n')}${suffix}`;
+      return structured(`${craftable.length} craftable`, {
+        item: null,
+        tableInReach: table !== null,
+        stoppedAt: craftable.length >= MAX_LISTED_RECIPES ? MAX_LISTED_RECIPES : null,
+        recipes: craftable,
+      } satisfies RecipeListView);
     },
   ),
 
@@ -156,18 +173,17 @@ export const craftingTools: ToolDefinition[] = [
       const mcData = minecraftData(bot.version);
       const item = resolveItem(mcData, args.itemName);
       const table = await reachableCraftingTable(bot, mcData);
-      const recipes = bot.recipesAll(item.id, null, table);
-
-      if (recipes.length === 0) {
-        return `No recipe produces ${item.name}.`;
-      }
-
-      const lines = recipes
+      const recipes = bot.recipesAll(item.id, null, table)
         .map((recipe) => ({ recipe, missing: missingFor(bot, mcData, recipe) }))
         .sort((a, b) => a.missing.length - b.missing.length)
-        .map(({ recipe, missing }) => `- ${describeRecipe(mcData, recipe, missing)}`);
+        .map(({ recipe, missing }) => viewRecipe(mcData, recipe, missing));
 
-      return `Recipes for ${item.name}:\n${lines.join('\n')}`;
+      return structured(`${recipes.length} recipes for ${item.name}`, {
+        item: item.name,
+        tableInReach: table !== null,
+        stoppedAt: null,
+        recipes,
+      } satisfies RecipeListView);
     },
   ),
 
@@ -184,30 +200,26 @@ export const craftingTools: ToolDefinition[] = [
       const table = await reachableCraftingTable(bot, mcData);
 
       if (bot.recipesFor(item.id, null, 1, table).length > 0) {
-        return `Yes, ${item.name} can be crafted now.`;
+        return structured(`${item.name}: yes`, {
+          item: item.name,
+          craftable: true,
+          hasRecipe: true,
+          missing: [],
+          needsTable: false,
+        } satisfies CanCraftView);
       }
 
-      const recipes = bot.recipesAll(item.id, null, table);
-
-      if (recipes.length === 0) {
-        return `No recipe produces ${item.name}.`;
-      }
-
-      const closest = recipes
+      const closest = bot.recipesAll(item.id, null, table)
         .map((recipe) => ({ recipe, missing: missingFor(bot, mcData, recipe) }))
         .sort((a, b) => a.missing.length - b.missing.length)[0];
 
-      if (!closest) {
-        return `No recipe produces ${item.name}.`;
-      }
-
-      const needsTable = closest.recipe.requiresTable && !table;
-      const reasons = [
-        ...closest.missing.map(({ name, count }) => `${name} x${count}`),
-        ...(needsTable ? ['a crafting table in reach'] : []),
-      ];
-
-      return `No. ${item.name} still needs: ${reasons.join(', ')}.`;
+      return structured(`${item.name}: no`, {
+        item: item.name,
+        craftable: false,
+        hasRecipe: closest !== undefined,
+        missing: closest?.missing ?? [],
+        needsTable: closest !== undefined && closest.recipe.requiresTable && table === null,
+      } satisfies CanCraftView);
     },
   ),
 

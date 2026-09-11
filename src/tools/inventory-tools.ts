@@ -3,7 +3,26 @@ import type { EquipmentDestination } from 'mineflayer';
 import loadItem from 'prismarine-item';
 import type { Item } from 'prismarine-item';
 import type { IndexedData } from 'minecraft-data';
-import { type ToolDefinition, defineTool } from '../rpc/tool.ts';
+import { type ToolDefinition, defineTool, structured } from '../rpc/tool.ts';
+
+export interface StackView {
+  name: string;
+  count: number;
+  slot: number;
+}
+
+export interface InventoryView {
+  items: StackView[];
+}
+
+export interface FoundItemView {
+  query: string;
+  item: StackView | null;
+}
+
+function viewStack(item: Item): StackView {
+  return { name: item.name, count: item.count, slot: item.slot };
+}
 
 /*
 prismarine-item ships an ESM declaration over a CommonJS module: the runtime export is the loader
@@ -30,12 +49,7 @@ export const inventoryTools: ToolDefinition[] = [
       const { bot } = ctx;
       const items = bot.inventory.items();
 
-      if (items.length === 0) {
-        return 'Inventory is empty.';
-      }
-
-      const lines = items.map((item) => `- ${item.name} x${item.count} (slot ${item.slot})`);
-      return `${items.length} item stack(s):\n${lines.join('\n')}`;
+      return structured(`${items.length} stacks`, { items: items.map(viewStack) } satisfies InventoryView);
     },
   ),
 
@@ -49,9 +63,10 @@ export const inventoryTools: ToolDefinition[] = [
       const { bot } = ctx;
       const item = findItem(bot.inventory.items(), args.nameOrType);
 
-      return item
-        ? `Found ${item.name} x${item.count} in slot ${item.slot}.`
-        : `No inventory item matches "${args.nameOrType}".`;
+      return structured(item ? `found ${item.name}` : 'no match', {
+        query: args.nameOrType,
+        item: item ? viewStack(item) : null,
+      } satisfies FoundItemView);
     },
   ),
 

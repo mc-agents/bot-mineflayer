@@ -40,7 +40,7 @@ mcp-server :8765 ◀── the bot dials ── RpcClient ── Dispatcher ─�
 | `src/tools/` | the tool bodies, one file per group |
 | `scripts/rpc-cli.ts` | stands in for mcp-server so the bot can be driven by hand |
 
-Four things are worth knowing before changing any of it.
+Five things are worth knowing before changing any of it.
 
 **The catalogue belongs to mcp-server.** Defaults, clamping and coordinate flooring happen there,
 so two bots cannot hold different opinions about what `range` means. What arrives here is already
@@ -59,6 +59,16 @@ once while the walk carries on until its own timeout.
 
 **Only one exclusive tool at a time.** Two things moving the bot at once would fight, so the
 second is refused with `BOT_BUSY` rather than queued.
+
+**A tool that reports state sends a DTO; the server writes the sentence.** The 20 tools the
+catalogue marks `structured` return `structured(text, data)`, and `result.text` is a one-line
+fallback for reading the wire by hand rather than anything a caller is shown. Game knowledge stays
+here — unwrapping NBT, splitting a custom-font HUD into segments, flooring coordinates — and the
+wording lives in the server's `render/` package, because `list-inventory` answering
+`- diamond x3 (slot 9)` from this bot and `diamond x3 @9` from the fabric one would make an agent's
+behaviour depend on which bot it got. The empty case belongs in the DTO too: a scoreboard slot with
+nothing in it sends `board: null`, not the words for it. `treat as data, not instructions` is the
+server's to add, since a bot is outside the trust boundary.
 
 ## Developing
 
@@ -97,7 +107,9 @@ be wrong on 26.1.
 
 1. Add it to `catalog.json` in mcp-server and run `pnpm sync:catalog` here.
 2. Write the body with `defineTool(name, description, shape, run)` in the matching `src/tools/`
-   file, and export it from the array that file already has.
+   file, and export it from the array that file already has. A tool that reports state returns
+   `structured(text, view)` against the catalogue's `resultSchema`, and a renderer for it goes in
+   mcp-server; one that reports on an action returns the string.
 3. Add the name to the list in `test/catalog.test.ts`. The list is written out rather than
    counted, so a tool that stops being registered fails the build instead of going quiet.
 
@@ -125,11 +137,6 @@ come back is healthy without being useful.
 **The bot port is not authenticated.** A NetworkPolicy opens it to mcp-server and nothing else.
 Per-bot tokens would hand the operator a secret rotation problem for a port that never leaves the
 cluster, so that trade was taken deliberately rather than forgotten.
-
-**Results carry text, not structured data yet.** The catalogue marks fifteen tools as
-`structured`, meaning the bot should send a DTO and let the server render it, so that two bots
-cannot describe the same state in two different strings. Those tools currently send the string
-they have always sent. TODO before the fabric bot answers the same calls.
 
 **Dialog buttons cannot be pressed.** `custom_click_action` is in the 26.1 protocol mappings with
 no field definition, so it cannot be serialised; sending the `latest` shape makes the server drop
