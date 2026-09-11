@@ -4,6 +4,7 @@ import type { Item } from 'prismarine-item';
 import { Vec3 } from 'vec3';
 import { type ToolDefinition, coordinateArgs, defineTool, floorCoordinates } from '../rpc/tool.ts';
 import { walkTo } from '../minecraft/navigate.ts';
+import { plainName } from '../minecraft/names.ts';
 
 const FURNACE_BLOCKS = new Set(['furnace', 'blast_furnace', 'smoker']);
 const FURNACE_REACH = 3;
@@ -66,8 +67,8 @@ export const furnaceTools: ToolDefinition[] = [
       }
 
       const items = bot.inventory.items();
-      const input = items.find((item) => item.name.includes(args.inputItem.trim().toLowerCase()));
-      const fuel = items.find((item) => item.name.includes(args.fuelItem.trim().toLowerCase()));
+      const input = items.find((item) => item.name.includes(plainName(args.inputItem)));
+      const fuel = items.find((item) => item.name.includes(plainName(args.fuelItem)));
 
       if (!input) {
         throw new Error(`No inventory item matches input "${args.inputItem}"`);

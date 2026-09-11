@@ -6,6 +6,7 @@ import minecraftData from 'minecraft-data';
 import type { IndexedData } from 'minecraft-data';
 import { type ToolDefinition, defineTool, structured } from '../rpc/tool.ts';
 import { walkTo } from '../minecraft/navigate.ts';
+import { plainName } from '../minecraft/names.ts';
 
 const TABLE_SEARCH_RADIUS = 16;
 const TABLE_REACH = 3;
@@ -47,7 +48,7 @@ function itemName(mcData: IndexedData, id: number): string {
 }
 
 function resolveItem(mcData: IndexedData, query: string): { id: number; name: string } {
-  const needle = query.trim().toLowerCase();
+  const needle = plainName(query);
   const exact = mcData.itemsByName[needle];
 
   if (exact) {

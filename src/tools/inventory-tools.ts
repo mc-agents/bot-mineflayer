@@ -4,6 +4,7 @@ import loadItem from 'prismarine-item';
 import type { Item } from 'prismarine-item';
 import type { IndexedData } from 'minecraft-data';
 import { type ToolDefinition, defineTool, structured } from '../rpc/tool.ts';
+import { plainName } from '../minecraft/names.ts';
 
 export interface StackView {
   name: string;
@@ -35,7 +36,7 @@ const loadItemForVersion = loadItem as unknown as ItemLoader;
 const EQUIPMENT_DESTINATIONS = ['hand', 'head', 'torso', 'legs', 'feet', 'off-hand'] as const;
 
 function findItem(items: Item[], query: string): Item | undefined {
-  const needle = query.trim().toLowerCase();
+  const needle = plainName(query);
   return items.find((item) => item.name === needle)
     ?? items.find((item) => item.name.includes(needle));
 }
@@ -109,7 +110,7 @@ export const inventoryTools: ToolDefinition[] = [
         throw new Error(`The bot is in ${bot.game.gameMode} mode; give-item needs creative.`);
       }
 
-      const kind = bot.registry.itemsByName[args.itemName];
+      const kind = bot.registry.itemsByName[plainName(args.itemName)];
 
       if (!kind) {
         throw new Error(`"${args.itemName}" is not an item in this version.`);

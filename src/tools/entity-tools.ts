@@ -2,6 +2,7 @@ import * as z from 'zod';
 import type { Entity } from 'prismarine-entity';
 import { type ToolDefinition, defineTool, structured } from '../rpc/tool.ts';
 import { describeSegments, toSegments } from '../minecraft/text.ts';
+import { plainName } from '../minecraft/names.ts';
 import { blockPoint } from '../minecraft/view.ts';
 import type { Point } from '../minecraft/view.ts';
 
@@ -53,7 +54,7 @@ export const entityTools: ToolDefinition[] = [
       const { bot } = ctx;
       const maxDistance = args.maxDistance ?? 16;
       const count = args.count ?? 1;
-      const filter = args.type?.trim().toLowerCase() ?? '';
+      const filter = args.type === undefined ? '' : plainName(args.type);
 
       const matches = Object.values(bot.entities)
         .filter((entity) => entity !== bot.entity)

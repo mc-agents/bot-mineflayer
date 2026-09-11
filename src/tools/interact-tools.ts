@@ -4,6 +4,7 @@ import type { Entity } from 'prismarine-entity';
 import { Vec3 } from 'vec3';
 import { type ToolDefinition, coordinateArgs, defineTool, floorCoordinates } from '../rpc/tool.ts';
 import { walkTo } from '../minecraft/navigate.ts';
+import { plainName } from '../minecraft/names.ts';
 import { readLabel } from '../minecraft/window.ts';
 
 const BLOCK_REACH = 3;
@@ -50,7 +51,7 @@ export function entityLabel(entity: EntityLike): string {
 }
 
 export function matchesEntityName(entity: EntityLike, query: string): boolean {
-  const needle = query.trim().toLowerCase();
+  const needle = plainName(query);
 
   if (needle === '') {
     return false;

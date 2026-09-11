@@ -5,6 +5,7 @@ import { Vec3 } from 'vec3';
 import { simplify } from 'prismarine-nbt';
 import { describeError, log } from '../logger.ts';
 import { describeSegments, toSegments } from '../minecraft/text.ts';
+import { plainName } from '../minecraft/names.ts';
 import { walkTo } from '../minecraft/navigate.ts';
 import { blockPoint } from '../minecraft/view.ts';
 import type { Point } from '../minecraft/view.ts';
@@ -86,7 +87,7 @@ export const blockTools: ToolDefinition[] = [
     (args, ctx) => {
       const { bot } = ctx;
       const mcData = minecraftData(bot.version);
-      const blockInfo = mcData.blocksByName[args.blockType];
+      const blockInfo = mcData.blocksByName[plainName(args.blockType)];
 
       if (!blockInfo) {
         throw new Error(`Unknown block type "${args.blockType}"`);
