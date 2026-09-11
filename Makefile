@@ -1,4 +1,4 @@
-IMAGE ?= ghcr.io/mc-agents/bot-mineflayer
+IMAGE ?= junhyung.cloud/library/bot-mineflayer
 COMPOSE ?= docker compose -f dev/compose.yml
 
 .PHONY: check
