@@ -25,6 +25,8 @@ export interface HeldView {
 
 export interface WindowView {
   title: string;
+  /* A menu header is drawn in the pack's own font as often as an item name is. */
+  titleComponent: unknown;
   type: number | string;
   slotCount: number;
   containerSlots: [number, number];
@@ -96,6 +98,7 @@ export function viewWindow(window: Window): WindowView {
 
   return {
     title: toPlainText(window.title),
+    titleComponent: rawComponentOf(window.title),
     type: window.type,
     slotCount: window.slots.length,
     containerSlots: [0, Math.max(window.inventoryStart - 1, 0)],

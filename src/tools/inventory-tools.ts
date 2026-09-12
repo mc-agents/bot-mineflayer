@@ -5,11 +5,16 @@ import type { Item } from 'prismarine-item';
 import type { IndexedData } from 'minecraft-data';
 import { type ToolDefinition, defineTool, structured } from '../rpc/tool.ts';
 import { plainName } from '../minecraft/names.ts';
+import { rawComponentOf } from '../minecraft/text.ts';
+import { readLabel } from '../minecraft/window.ts';
 
 export interface StackView {
   name: string;
   count: number;
   slot: number;
+  /* A quest item or a menu button is named by the server, often in the pack's own font. */
+  label: string | null;
+  labelComponent: unknown;
 }
 
 export interface InventoryView {
@@ -22,7 +27,13 @@ export interface FoundItemView {
 }
 
 function viewStack(item: Item): StackView {
-  return { name: item.name, count: item.count, slot: item.slot };
+  return {
+    name: item.name,
+    count: item.count,
+    slot: item.slot,
+    label: readLabel(item),
+    labelComponent: rawComponentOf(item.customName),
+  };
 }
 
 /*

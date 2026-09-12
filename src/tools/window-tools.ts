@@ -119,10 +119,10 @@ export const windowTools: ToolDefinition[] = [
         return structured('no window was open', { closed: null });
       }
 
-      const { title } = viewWindow(window);
+      const { title, titleComponent } = viewWindow(window);
       await bot.closeWindow(window);
 
-      return structured(`closed ${title}`, { closed: title });
+      return structured(`closed ${title}`, { closed: title, closedComponent: titleComponent });
     },
   ),
 ];
