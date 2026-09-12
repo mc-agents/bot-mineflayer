@@ -2,7 +2,7 @@ import * as z from 'zod';
 import type { Bot } from 'mineflayer';
 import type { Window } from 'prismarine-windows';
 import { type ToolDefinition, defineTool, structured } from '../rpc/tool.ts';
-import { describeWindow, requireWindow, viewWindow } from '../minecraft/window.ts';
+import { describeWindow, viewWindow } from '../minecraft/window.ts';
 import type { WindowView } from '../minecraft/window.ts';
 
 const MAX_PATTERN_LENGTH = 256;
