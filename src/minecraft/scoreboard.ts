@@ -1,8 +1,10 @@
-import { toPlainText } from './text.ts';
+import { rawComponentOf, toPlainText } from './text.ts';
 
 export interface ScoreEntry {
   name: string;
   score: number;
+  /* The component the server wrote the name as, for mcp-server to flatten itself. */
+  nameComponent: unknown;
 }
 
 interface ScorePacket {
@@ -56,7 +58,11 @@ export class ScoreTracker {
     const entries = this.objectives.get(scoreName) ?? new Map<string, ScoreEntry>();
     const label = toPlainText(packet.display_name);
 
-    entries.set(itemName, { name: label === '' ? toPlainText(itemName) : label, score: value });
+    entries.set(itemName, {
+      name: label === '' ? toPlainText(itemName) : label,
+      score: value,
+      nameComponent: rawComponentOf(packet.display_name ?? itemName),
+    });
     this.objectives.set(scoreName, entries);
   }
 

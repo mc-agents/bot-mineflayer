@@ -20,7 +20,7 @@ test('a score packet without an action field still lands, which mineflayer drops
   emit('scoreboard_score', { itemName: 'Coins', scoreName: 'stats', value: 1250 });
   emit('scoreboard_score', { itemName: 'Level', scoreName: 'stats', value: 7 });
 
-  assert.deepEqual(tracker.entriesFor('stats'), [
+  assert.deepEqual(tracker.entriesFor('stats').map(({ name, score }) => ({ name, score })), [
     { name: 'Coins', score: 1250 },
     { name: 'Level', score: 7 },
   ]);
@@ -38,7 +38,12 @@ test('a display name in NBT form replaces the raw entry name', () => {
     display_name: { type: 'compound', value: { text: { type: 'string', value: 'Gold Coins' } } },
   });
 
-  assert.deepEqual(tracker.entriesFor('stats'), [{ name: 'Gold Coins', score: 5 }]);
+  assert.deepEqual(tracker.entriesFor('stats').map(({ name, score }) => ({ name, score })),
+    [{ name: 'Gold Coins', score: 5 }]);
+
+  /* And the component it was written as, so mcp-server flattens it rather than the bot. */
+  assert.deepEqual(tracker.entriesFor('stats')[0]?.nameComponent,
+    { type: 'compound', value: { text: { type: 'string', value: 'Gold Coins' } } });
 });
 
 test('reset_score removes one entry, or the entry everywhere when no objective is named', () => {

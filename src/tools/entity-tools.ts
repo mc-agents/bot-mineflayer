@@ -12,6 +12,8 @@ export interface EntityView {
   type: string;
   position: Point;
   distance: number;
+  /* A nameplate is a HUD on a server that draws with glyphs, so the component travels too. */
+  labelComponent: unknown;
 }
 
 export interface FoundEntitiesView {
@@ -46,6 +48,7 @@ function viewEntity(entity: Entity, distance: number): EntityView {
     type: entity.name ?? entity.type,
     position: blockPoint(entity.position),
     distance,
+    labelComponent: customNameComponent(entity),
   };
 }
 

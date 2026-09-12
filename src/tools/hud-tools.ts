@@ -34,16 +34,19 @@ interface PlayerLike {
   username: string;
   gamemode?: number;
   ping?: number;
+  displayName?: unknown;
 }
 
 export interface ScoreboardEntry {
   name: string;
   score: number;
+  nameComponent: unknown;
 }
 
 export interface ScoreboardView {
   title: string;
   entries: ScoreboardEntry[];
+  titleComponent: unknown;
 }
 
 export interface BossBarView {
@@ -60,6 +63,9 @@ export interface PlayerView {
   gameMode: string;
   ping: number | null;
   self: boolean;
+  /* What the tab list draws, which is where a server puts a rank. Null when it set none. */
+  displayName: string | null;
+  displayNameComponent: unknown;
 }
 
 export interface ScoreboardSlotView {
@@ -91,10 +97,11 @@ export function viewScoreboard(board: ScoreboardLike): ScoreboardView {
     .map((item) => ({
       name: toPlainText(item.displayName) || toPlainText(item.name),
       score: item.value,
+      nameComponent: rawComponentOf(item.displayName ?? item.name),
     }))
     .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name));
 
-  return { title: toPlainText(board.title), entries };
+  return { title: toPlainText(board.title), entries, titleComponent: rawComponentOf(board.title) };
 }
 
 /*
@@ -122,6 +129,10 @@ export function viewPlayerList(players: Record<string, PlayerLike>, selfUsername
       gameMode: GAME_MODES[player.gamemode ?? -1] ?? 'unknown',
       ping: player.ping ?? null,
       self: player.username === selfUsername,
+      displayName: player.displayName === undefined || player.displayName === null
+        ? null
+        : toPlainText(player.displayName),
+      displayNameComponent: rawComponentOf(player.displayName),
     }))
     .sort((a, b) => a.name.localeCompare(b.name));
 }

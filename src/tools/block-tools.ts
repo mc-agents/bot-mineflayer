@@ -4,7 +4,7 @@ import minecraftData from 'minecraft-data';
 import { Vec3 } from 'vec3';
 import { simplify } from 'prismarine-nbt';
 import { describeError, log } from '../logger.ts';
-import { describeSegments, toSegments } from '../minecraft/text.ts';
+import { rawComponentOf, toSegments } from '../minecraft/text.ts';
 import { plainName } from '../minecraft/names.ts';
 import { walkTo } from '../minecraft/navigate.ts';
 import { blockPoint } from '../minecraft/view.ts';
@@ -32,6 +32,7 @@ export interface FoundBlocksView {
 export interface SignFaceView {
   face: string;
   lines: string[];
+  lineComponents: unknown[];
 }
 
 export interface BlockEntityView {
@@ -284,10 +285,18 @@ function readSignFaces(data: unknown): SignFaceView[] {
       continue;
     }
 
-    const lines = side.messages.map((message) => describeSegments(toSegments(message)));
+    /*
+    Joined with nothing between the pieces, which is what a Minecraft client's own getString()
+    does and what the other kind of bot sends. It used to be the rendered form, font markers and
+    separators included, so a sign written in the pack's own font read differently on the two
+    kinds. Those markers are the renderer's, and the component beside the line is what it reads.
+    */
+    const lines = side.messages.map(
+      (message) => toSegments(message).map((piece) => piece.text).join(''),
+    );
 
     if (lines.some((one) => one !== '')) {
-      faces.push({ face, lines });
+      faces.push({ face, lines, lineComponents: side.messages.map(rawComponentOf) });
     }
   }
 

@@ -14,7 +14,7 @@ test('scoreboard entries come back highest score first however the server ordere
     ],
   });
 
-  assert.deepEqual(view.entries, [
+  assert.deepEqual(view.entries.map(({ name, score }) => ({ name, score })), [
     { name: 'Coins', score: 1200 },
     { name: 'Level', score: 42 },
     { name: 'Deaths', score: 3 },
@@ -59,10 +59,16 @@ test('the NBT shape the server sends for the title and for entries is unwrapped'
   });
 
   assert.equal(view.title, 'Server Stats');
-  assert.deepEqual(view.entries, [
+  assert.deepEqual(view.entries.map(({ name, score }) => ({ name, score })), [
     { name: 'Coins earned', score: 1200 },
     { name: '[VIP] Level', score: 42 },
   ]);
+
+  /* The component travels beside the name, so mcp-server does the flattening itself. */
+  assert.deepEqual(view.entries[1]?.nameComponent,
+    { text: '', extra: [{ text: '§a[VIP] ' }, { text: 'Level' }] });
+  assert.deepEqual(view.titleComponent,
+    { type: 'compound', value: { color: nbtString('gold'), text: nbtString('§6Server  Stats') } });
 });
 
 test('an entry without a usable display name falls back to its raw name', () => {
@@ -74,7 +80,7 @@ test('an entry without a usable display name falls back to its raw name', () => 
     ],
   });
 
-  assert.deepEqual(view.entries, [
+  assert.deepEqual(view.entries.map(({ name, score }) => ({ name, score })), [
     { name: 'Balance', score: 10 },
     { name: 'Rank', score: 9 },
     { name: 'Total kills', score: 8 },
@@ -144,9 +150,9 @@ test('the player list is sorted by name and marks the bot itself', () => {
   );
 
   assert.deepEqual(players, [
-    { name: 'adam', gameMode: 'spectator', ping: 210, self: false },
-    { name: 'HyperBot', gameMode: 'survival', ping: 12, self: true },
-    { name: 'zoe', gameMode: 'creative', ping: 40, self: false },
+    { name: 'adam', gameMode: 'spectator', ping: 210, self: false, displayName: null, displayNameComponent: null },
+    { name: 'HyperBot', gameMode: 'survival', ping: 12, self: true, displayName: null, displayNameComponent: null },
+    { name: 'zoe', gameMode: 'creative', ping: 40, self: false, displayName: null, displayNameComponent: null },
   ]);
 });
 
@@ -154,8 +160,8 @@ test('a player the server has not described yet does not break the list', () => 
   assert.deepEqual(
     viewPlayerList({ ghost: { username: 'ghost' }, odd: { username: 'odd', gamemode: 9, ping: 5 } }, 'me'),
     [
-      { name: 'ghost', gameMode: 'unknown', ping: null, self: false },
-      { name: 'odd', gameMode: 'unknown', ping: 5, self: false },
+      { name: 'ghost', gameMode: 'unknown', ping: null, self: false, displayName: null, displayNameComponent: null },
+      { name: 'odd', gameMode: 'unknown', ping: 5, self: false, displayName: null, displayNameComponent: null },
     ],
   );
 });
@@ -172,7 +178,7 @@ test('a tracked score list survives NBT display names and sorts by score', () =>
   const view = viewScoreboard(board);
 
   assert.equal(view.title, 'Player Stats');
-  assert.deepEqual(view.entries, [
+  assert.deepEqual(view.entries.map(({ name, score }) => ({ name, score })), [
     { name: 'Gold Coins', score: 1250 },
     { name: 'Level', score: 7 },
   ]);
