@@ -108,16 +108,21 @@ export const windowTools: ToolDefinition[] = [
 
   defineTool(
     'close-window',
-    'Close the GUI window the bot currently has open.',
+    'Close the GUI window the bot has open, or report that there was none.',
     {},
     async (_args, ctx) => {
       const { bot } = ctx;
-      const window = requireWindow(bot);
-      const { title } = viewWindow(window);
+      const window = bot.currentWindow;
 
+      /* Asking to close nothing is a no-op, not a mistake, so it travels as a state. */
+      if (!window) {
+        return structured('no window was open', { closed: null });
+      }
+
+      const { title } = viewWindow(window);
       await bot.closeWindow(window);
 
-      return `Closed window "${title}".`;
+      return structured(`closed ${title}`, { closed: title });
     },
   ),
 ];
