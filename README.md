@@ -142,6 +142,13 @@ cluster, so that trade was taken deliberately rather than forgotten.
 no field definition, so it cannot be serialised; sending the `latest` shape makes the server drop
 the connection. Dialogs are read, never answered. This is one of the reasons `bot-fabric` exists.
 
+**It stops at the version its protocol library stops at.** Today the game is on 26.2 and
+`minecraft-protocol` speaks 26.1, so this bot cannot join a 26.2 server at all: there are no packet
+definitions for it. `join-server` says so in as many words and points at the other kind, because a
+`fabric` bot is a real client and is handed its protocol by Mojang. This is the lag the whole
+two-kinds arrangement exists for, and it is not a bug to be fixed here -- it is what following a
+reimplementation costs.
+
 **Crafting places the grid wrong on 26.1.** mineflayer fills the crafting slots itself rather than
 asking the server to, and on 26.1 that goes astray: eight oak planks asked for two lots of sticks
 came back as four sticks and an oak button, with five planks gone. `craft-item` now counts what the

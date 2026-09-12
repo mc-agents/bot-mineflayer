@@ -47,6 +47,28 @@ type Events = {
   status: [StatusMessage];
 };
 
+/*
+The protocol library follows the game rather than leading it, and a server newer than the newest
+version it speaks fails with a sentence about missing data. That reads like a broken install. What
+it means is that this kind of bot cannot talk to that server at all, and that the other kind -- a
+real client, handed its protocol by Mojang -- can.
+*/
+const UNSUPPORTED_VERSION = /No data available for version (\S+)|Unsupported protocol version/i;
+
+function dialFailure(error: Error): string {
+  const described = describeError(error);
+  const unsupported = UNSUPPORTED_VERSION.exec(described);
+
+  if (unsupported === null) {
+    return `could not reach the server: ${described}`;
+  }
+
+  return `this bot cannot speak Minecraft ${unsupported[1] ?? 'that version'}. `
+    + `Its protocol library stops at ${mineflayer.latestSupportedVersion}, and a server past that `
+    + 'is one it has no packets for. A fabric bot is a real client and follows the game; '
+    + 'join-server with kind "fabric".';
+}
+
 export class BotHost extends EventEmitter<Events> {
   readonly scores = new ScoreTracker();
 
@@ -194,7 +216,7 @@ export class BotHost extends EventEmitter<Events> {
       };
 
       const onSpawn = () => settle();
-      const onFailure = (error: Error) => settle(new JoinError('dial', `could not reach the server: ${describeError(error)}`));
+      const onFailure = (error: Error) => settle(new JoinError('dial', dialFailure(error)));
       const onKicked = (reason: string) => settle(new JoinError('login', `the server refused the login: ${describeError(reason)}`));
       const onEnd = (reason: string) => settle(new JoinError('login', `the connection closed before spawn: ${describeError(reason)}`));
 
