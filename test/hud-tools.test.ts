@@ -95,6 +95,7 @@ test('a boss bar title arrives as NBT and its health becomes a progress fraction
       color: 'purple',
       dividers: 10,
       segments: [{ text: 'Wither', font: undefined, color: undefined }],
+      component: { type: 'compound', value: { text: nbtString('§5Wither') } },
     },
   );
 });
@@ -128,7 +129,7 @@ test('the pieces a boss bar title is built from travel with it', () => {
 test('a boss bar the server has not fully described still reads', () => {
   assert.deepEqual(
     viewBossBar({ health: 1 }),
-    { title: '', progress: 1, color: 'unknown', dividers: 0, segments: [] },
+    { title: '', progress: 1, color: 'unknown', dividers: 0, segments: [], component: null },
   );
 });
 

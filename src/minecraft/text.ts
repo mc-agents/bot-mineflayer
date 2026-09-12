@@ -272,6 +272,21 @@ export function glyphPieces(value: unknown): number {
     .length;
 }
 
+/*
+The component as the server sent it, for mcp-server to flatten itself. prismarine keeps it on the
+wrapper it hands over, so this is a pass-through rather than a reconstruction: nothing here has to
+be right about fonts, nesting or the shorthand, which is where every bug in this file came from.
+*/
+export function rawComponentOf(value: unknown): unknown {
+  if (value === null || value === undefined || typeof value !== 'object') {
+    return value ?? null;
+  }
+
+  const wrapper = value as { json?: unknown };
+
+  return wrapper.json !== null && typeof wrapper.json === 'object' ? wrapper.json : value;
+}
+
 /* The readable pieces joined, for the plain-text field a DTO keeps beside its segments. */
 export function plainSegments(segments: TextSegment[]): string {
   return segments.map((segment) => segment.text).join(' ');

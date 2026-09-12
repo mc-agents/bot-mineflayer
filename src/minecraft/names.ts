@@ -7,7 +7,7 @@ Dropping the default namespace is what the game does when one is left out. Any o
 belongs to a plugin and genuinely is not in the vanilla registry, so it is kept whole and the
 lookup fails naming the id the caller actually gave.
 */
-import { describeSegments, toSegments } from './text.ts';
+import { toSegments } from './text.ts';
 
 const VANILLA = 'minecraft:';
 
@@ -30,7 +30,17 @@ export interface MaybeNamed {
 }
 
 export function customName(entity: MaybeNamed): string | null {
-  const named = describeSegments(toSegments(entity.metadata?.[CUSTOM_NAME_SLOT]));
+  /*
+  Joined with nothing between the pieces, because that is what a Minecraft client's own
+  getString() does and this name travels beside the other kind of bot's. Font markers belong to
+  the renderer, not to a name -- putting them here made an entity's label read "[font] a | b".
+  */
+  const named = toSegments(entity.metadata?.[CUSTOM_NAME_SLOT]).map((piece) => piece.text).join('');
 
   return named === '' ? null : named;
+}
+
+/** The component behind that name, for mcp-server to flatten itself. */
+export function customNameComponent(entity: MaybeNamed): unknown {
+  return entity.metadata?.[CUSTOM_NAME_SLOT] ?? null;
 }

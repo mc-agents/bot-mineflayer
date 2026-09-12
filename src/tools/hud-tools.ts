@@ -2,7 +2,7 @@ import * as z from 'zod';
 import type { BossBar, Bot, ScoreBoard } from 'mineflayer';
 import { type ToolDefinition, defineTool, structured } from '../rpc/tool.ts';
 import type { TextSegment } from '../minecraft/text.ts';
-import { plainSegments, toPlainText, toSegments } from '../minecraft/text.ts';
+import { plainSegments, rawComponentOf, toPlainText, toSegments } from '../minecraft/text.ts';
 import { blockPoint } from '../minecraft/view.ts';
 import type { Point } from '../minecraft/view.ts';
 
@@ -52,6 +52,7 @@ export interface BossBarView {
   color: string;
   dividers: number;
   segments: TextSegment[];
+  component: unknown;
 }
 
 export interface PlayerView {
@@ -107,6 +108,7 @@ export function viewBossBar(bar: BossBarLike): BossBarView {
   return {
     title: plainSegments(segments),
     segments,
+    component: rawComponentOf(bar.title),
     progress: bar.health ?? 0,
     color: bar.color ?? 'unknown',
     dividers: bar.dividers ?? 0,

@@ -2,8 +2,8 @@ import * as z from 'zod';
 import type { Entity } from 'prismarine-entity';
 import { type ToolDefinition, defineTool, structured } from '../rpc/tool.ts';
 import type { TextSegment } from '../minecraft/text.ts';
-import { glyphPieces, plainSegments, toSegments } from '../minecraft/text.ts';
-import { customName, plainName } from '../minecraft/names.ts';
+import { glyphPieces, plainSegments, rawComponentOf, toSegments } from '../minecraft/text.ts';
+import { customName, customNameComponent, plainName } from '../minecraft/names.ts';
 import { blockPoint } from '../minecraft/view.ts';
 import type { Point } from '../minecraft/view.ts';
 
@@ -27,6 +27,7 @@ export interface DisplayView {
   distance: number;
   segments: TextSegment[];
   glyphPieces: number;
+  component: unknown;
 }
 
 export interface DisplaysView {
@@ -95,17 +96,32 @@ NPC labels with them, so without this they show up as "text_display" and nothing
 */
 const DISPLAY_TEXT_SLOT = 23;
 
-function displayed(entity: Entity): { segments: TextSegment[]; glyphPieces: number; text: string } {
+function displayed(entity: Entity): {
+  segments: TextSegment[];
+  glyphPieces: number;
+  text: string;
+  component: unknown;
+} {
   const metadata = (entity as unknown as { metadata?: Record<number, unknown> }).metadata ?? {};
   const raw = metadata[DISPLAY_TEXT_SLOT];
   const segments = toSegments(raw);
   const named = customName(entity);
 
   if (segments.length === 0 && named !== null) {
-    return { segments: [{ text: named, font: undefined, color: undefined }], glyphPieces: 0, text: named };
+    return {
+      segments: [{ text: named, font: undefined, color: undefined }],
+      glyphPieces: 0,
+      text: named,
+      component: rawComponentOf(customNameComponent(entity)),
+    };
   }
 
-  return { segments, glyphPieces: glyphPieces(raw), text: plainSegments(segments) };
+  return {
+    segments,
+    glyphPieces: glyphPieces(raw),
+    text: plainSegments(segments),
+    component: rawComponentOf(raw),
+  };
 }
 
 export const displayTools: ToolDefinition[] = [
@@ -146,6 +162,7 @@ export const displayTools: ToolDefinition[] = [
           distance,
           segments: said.segments,
           glyphPieces: said.glyphPieces,
+          component: said.component,
         })),
       } satisfies DisplaysView);
     },
