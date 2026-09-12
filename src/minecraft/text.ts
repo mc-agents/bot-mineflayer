@@ -1,3 +1,8 @@
+/* Colour codes and runs of whitespace, but not the space at either end. */
+export function stripCodes(value: string): string {
+  return value.replace(/§[0-9a-fk-or]/gi, '').replace(/\s+/g, ' ');
+}
+
 export function stripFormatting(value: string): string {
   return value.replace(/§[0-9a-fk-or]/gi, '').replace(/\s+/g, ' ').trim();
 }
@@ -164,9 +169,15 @@ export function toSegments(value: unknown): TextSegment[] {
   const collected: TextSegment[] = [];
   collect(value, { text: '', font: undefined, color: undefined }, collected);
 
+  /*
+  Not trimmed: "Wave " and "Wave" are different pieces. A server that writes a label and a number
+  as two components puts the space in one of them, and trimming it makes this bot and the fabric
+  one describe a HUD they both read correctly in two different ways. Colour codes and glyphs still
+  go, because those are game knowledge and mean nothing as text.
+  */
   return collected
-    .map((segment) => ({ ...segment, text: stripFormatting(segment.text.replace(GLYPHS, '')) }))
-    .filter((segment) => segment.text !== '');
+    .map((segment) => ({ ...segment, text: stripCodes(segment.text.replace(GLYPHS, '')) }))
+    .filter((segment) => segment.text.trim() !== '');
 }
 
 function shortFont(font: string): string {

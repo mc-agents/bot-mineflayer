@@ -219,8 +219,23 @@ export class BotHost extends EventEmitter<Events> {
       });
     });
 
-    bot.on('messagestr', (message, position) => {
-      this.send('chat', String(position), message);
+    /*
+    source is who produced the line, not where the client drew it: mineflayer's position is
+    "chat"/"system"/"game_info", which says what kind already says, and reporting it there left
+    this bot and the fabric one describing the same chat log differently.
+
+    Only the 'chat' event carries a username, and it fires before 'messagestr' for the same line,
+    so the last one seen names the sender of the line that follows it.
+    */
+    let lastSender: string | null = null;
+
+    bot.on('chat', (username) => {
+      lastSender = username;
+    });
+
+    bot.on('messagestr', (message) => {
+      this.send('chat', lastSender ?? 'system', message);
+      lastSender = null;
     });
 
     const recordActionBar = (value: unknown) => {
@@ -273,7 +288,8 @@ export class BotHost extends EventEmitter<Events> {
     bot._client.on('world_particles' as never, ((packet: { particle?: { type?: unknown } }) => {
       const type = packet.particle?.type;
       if (typeof type === 'string') {
-        this.send('effect', 'particle', type);
+        /* Namespaced, like every other id: minecraft-data gives the bare name for a vanilla one. */
+        this.send('effect', 'particle', type.includes(':') ? type : `minecraft:${type}`);
       }
     }) as never);
 
