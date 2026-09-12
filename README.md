@@ -138,6 +138,12 @@ come back is healthy without being useful.
 Per-bot tokens would hand the operator a secret rotation problem for a port that never leaves the
 cluster, so that trade was taken deliberately rather than forgotten.
 
+**A dialog is read, and it is read from the registry.** `/dialog show` names one the datapack
+declared, so the packet carries nothing but an index into the `minecraft:dialog` registry the
+server sent during configuration. mineflayer does not model that registry, so `src/minecraft/`
+keeps it: without it every datapack dialog was dropped and the feed said the server had not sent
+one while the dialog was on the screen.
+
 **Dialog buttons cannot be pressed.** `custom_click_action` is in the 26.1 protocol mappings with
 no field definition, so it cannot be serialised; sending the `latest` shape makes the server drop
 the connection. Dialogs are read, never answered. This is one of the reasons `bot-fabric` exists.

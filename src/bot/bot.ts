@@ -9,7 +9,9 @@ import type { RecipeBookClient } from '../minecraft/recipe-book.ts';
 import { ScoreTracker } from '../minecraft/scoreboard.ts';
 import type { PacketSource } from '../minecraft/scoreboard.ts';
 import { plainSegments, rawComponentOf, toSegments } from '../minecraft/text.ts';
-import { describeDialog, soundName } from '../minecraft/screen.ts';
+import { DialogRegistry, dialogTitle, plainDialog } from '../minecraft/dialogs.ts';
+import type { DialogRegistryClient } from '../minecraft/dialogs.ts';
+import { soundName } from '../minecraft/screen.ts';
 import { useTranslations } from '../minecraft/text.ts';
 import type { SoundPacket } from '../minecraft/screen.ts';
 import type { RawEvent } from '../rpc/events.ts';
@@ -74,6 +76,7 @@ function dialFailure(error: Error): string {
 export class BotHost extends EventEmitter<Events> {
   readonly scores = new ScoreTracker();
   readonly recipes = new RecipeBook();
+  readonly dialogs = new DialogRegistry();
 
   private bot: Bot | null = null;
   private spec: JoinSpec | null = null;
@@ -157,6 +160,7 @@ export class BotHost extends EventEmitter<Events> {
     this.bot = bot;
     this.scores.attach(bot._client as unknown as PacketSource);
     this.recipes.attach(bot._client as unknown as RecipeBookClient);
+    this.dialogs.attach(bot._client as unknown as DialogRegistryClient);
     applyProtocolPatches(bot, spec.username);
     this.registerHandlers(bot);
 
@@ -312,9 +316,22 @@ export class BotHost extends EventEmitter<Events> {
     show_dialog is new in 26.1 and mineflayer does not know it. Reading it is all that is on
     offer: custom_click_action, the packet that answers a dialog, is listed in the protocol
     mappings but carries no field definition, so it cannot be serialised to press a button.
+
+    The dialog travels as structure and mcp-server writes the line, because a dialog is a title,
+    some body and a row of buttons rather than one piece of text -- and because the other kind of
+    bot has to be able to send the same thing.
     */
     bot._client.on('show_dialog' as never, ((packet: { dialog?: unknown }) => {
-      this.send('dialog', 'dialog', describeDialog(packet.dialog));
+      const dialog = plainDialog(this.dialogs.resolve(packet.dialog));
+
+      if (dialog === null) {
+        this.send('dialog', 'dialog', 'a dialog this bot could not read');
+        return;
+      }
+
+      const title = dialogTitle(dialog);
+
+      this.send('dialog', 'dialog', title === '' ? 'a dialog' : title, { data: dialog });
     }) as never);
 
     /*
