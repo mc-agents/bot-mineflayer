@@ -11,6 +11,14 @@ export interface SlotView {
   lore: string[];
 }
 
+/** A stack that is not in a numbered slot: under the cursor, or on its way to the ground. */
+export interface HeldView {
+  name: string;
+  count: number;
+  label: string | null;
+  lore: string[];
+}
+
 export interface WindowView {
   title: string;
   type: number | string;
@@ -40,6 +48,20 @@ export function readLore(item: Item): string[] {
 export function viewSlot(item: Item): SlotView {
   return {
     slot: item.slot,
+    name: item.name,
+    count: item.count,
+    label: readLabel(item),
+    lore: readLore(item),
+  };
+}
+
+/* Empty is a state, and it travels as no stack at all rather than as a count of zero. */
+export function viewHeld(item: Item | null | undefined): HeldView | null {
+  if (item === null || item === undefined) {
+    return null;
+  }
+
+  return {
     name: item.name,
     count: item.count,
     label: readLabel(item),

@@ -2,7 +2,7 @@ import * as z from 'zod';
 import { Vec3 } from 'vec3';
 import { type ToolDefinition, coordinateArgs, defineTool, floorCoordinates, structured } from '../rpc/tool.ts';
 import { walkTo } from '../minecraft/navigate.ts';
-import { describeWindow, readLabel, requireWindow, viewWindow } from '../minecraft/window.ts';
+import { type HeldView, describeWindow, requireWindow, viewHeld, viewWindow } from '../minecraft/window.ts';
 
 const CLICK_BUTTONS = ['left', 'right'] as const;
 
@@ -21,6 +21,20 @@ const CONTAINER_REACH = 3;
 const CURSOR_SLOT = -999;
 
 export type ClickButton = (typeof CLICK_BUTTONS)[number];
+
+export interface ClickedSlotView {
+  slot: number;
+  button: ClickButton;
+  shift: boolean;
+  before: HeldView | null;
+  after: HeldView | null;
+  cursor: HeldView | null;
+}
+
+export interface DroppedItemView {
+  slot: number | null;
+  dropped: HeldView | null;
+}
 
 export interface ClickPlan {
   mouseButton: number;
@@ -59,16 +73,24 @@ export const slotTools: ToolDefinition[] = [
 
       const button = args.button ?? 'left';
       const shift = args.shift ?? false;
-      const before = window.slots[args.slot];
+      const before = viewHeld(window.slots[args.slot]);
       const { mouseButton, mode } = planClick(button, shift);
 
       await bot.clickWindow(args.slot, mouseButton, mode);
 
-      const held = before
-        ? `held ${readLabel(before) ?? before.name} x${before.count}`
-        : 'was empty';
-
-      return `${shift ? 'Shift-' : ''}${button}-clicked slot ${args.slot}, which ${held}.`;
+      /*
+      The slot after the click and the cursor go back as well, because a plugin that cancels the
+      click leaves both untouched and a sentence naming only the slot cannot tell that from a
+      click that worked. The caller used to have to follow every click with read-window.
+      */
+      return structured('clicked slot ' + args.slot, {
+        slot: args.slot,
+        button,
+        shift,
+        before,
+        after: viewHeld(window.slots[args.slot]),
+        cursor: viewHeld(window.selectedItem),
+      } satisfies ClickedSlotView);
     },
   ),
 
@@ -111,29 +133,32 @@ export const slotTools: ToolDefinition[] = [
       const { bot } = ctx;
       const window = bot.currentWindow ?? bot.inventory;
 
-      if (args.slot === undefined) {
-        const cursor = window.selectedItem;
+      /* Nothing to drop is a state, so it travels as dropped: null and mcp-server says so. */
+      const answer = (slot: number | null, dropped: HeldView | null) => structured(
+        dropped === null ? 'nothing to drop' : 'dropped ' + dropped.name,
+        { slot, dropped } satisfies DroppedItemView,
+      );
 
-        if (!cursor) {
-          return 'The cursor is empty, so there was nothing to drop.';
+      if (args.slot === undefined) {
+        const cursor = viewHeld(window.selectedItem);
+
+        if (cursor !== null) {
+          await bot.clickWindow(CURSOR_SLOT, 0, 0);
         }
 
-        await bot.clickWindow(CURSOR_SLOT, 0, 0);
-        return `Dropped ${cursor.name} x${cursor.count} from the cursor.`;
+        return answer(null, cursor);
       }
 
       assertSlotInWindow(args.slot, window.slots.length);
 
-      const item = window.slots[args.slot];
+      const item = viewHeld(window.slots[args.slot]);
 
-      if (!item) {
-        return `Slot ${args.slot} is empty, so there was nothing to drop.`;
+      if (item !== null) {
+        await bot.clickWindow(args.slot, 0, 0);
+        await bot.clickWindow(CURSOR_SLOT, 0, 0);
       }
 
-      await bot.clickWindow(args.slot, 0, 0);
-      await bot.clickWindow(CURSOR_SLOT, 0, 0);
-
-      return `Dropped ${readLabel(item) ?? item.name} x${item.count} from slot ${args.slot}.`;
+      return answer(args.slot, item);
     },
   ),
 ];
