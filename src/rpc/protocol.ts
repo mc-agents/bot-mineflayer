@@ -90,6 +90,7 @@ export interface EventMessage {
   source: string;
   text: string;
   segments?: TextSegmentWire[];
+  component?: unknown;
   data?: unknown;
   ts: number;
   firstTs: number;

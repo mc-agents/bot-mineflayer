@@ -11,6 +11,12 @@ export interface RawEvent {
   source: string;
   text: string;
   segments?: TextSegment[];
+  /*
+  The component the server sent, which mcp-server flattens itself. It travels on every feed, not
+  only the ones that carry segments: a chat line built from pieces is still a component, and the
+  rule for reading one lives in the server now.
+  */
+  component?: unknown;
   data?: unknown;
 }
 
@@ -20,6 +26,7 @@ interface Run {
   source: string;
   text: string;
   segments?: TextSegmentWire[];
+  component?: unknown;
   data?: unknown;
   firstTs: number;
   ts: number;
@@ -47,6 +54,7 @@ function frame(run: Run, closed: boolean): EventMessage {
     source: run.source,
     text: run.text,
     ...(run.segments === undefined ? {} : { segments: run.segments }),
+    ...(run.component === undefined || run.component === null ? {} : { component: run.component }),
     ...(run.data === undefined ? {} : { data: run.data }),
     ts: run.ts,
     firstTs: run.firstTs,
@@ -161,6 +169,7 @@ export class EventFolder {
       source: event.source,
       text: event.text,
       segments: wireSegments(event.segments),
+      component: event.component,
       data: event.data,
       firstTs: now,
       ts: now,

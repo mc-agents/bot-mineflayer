@@ -6,7 +6,7 @@ import { describeError, log } from '../logger.ts';
 import { connectOverride } from '../minecraft/connect.ts';
 import { ScoreTracker } from '../minecraft/scoreboard.ts';
 import type { PacketSource } from '../minecraft/scoreboard.ts';
-import { describeSegments, toSegments } from '../minecraft/text.ts';
+import { plainSegments, rawComponentOf, toSegments } from '../minecraft/text.ts';
 import { describeDialog, soundName } from '../minecraft/screen.ts';
 import { useTranslations } from '../minecraft/text.ts';
 import type { SoundPacket } from '../minecraft/screen.ts';
@@ -253,19 +253,34 @@ export class BotHost extends EventEmitter<Events> {
     so the last one seen names the sender of the line that follows it.
     */
     let lastSender: string | null = null;
+    /* 'message' carries the component for the same line and fires before 'messagestr'. */
+    let lastComponent: unknown = null;
 
     bot.on('chat', (username) => {
       lastSender = username;
     });
 
+    bot.on('message', (message) => {
+      lastComponent = rawComponentOf(message);
+    });
+
     bot.on('messagestr', (message) => {
-      this.send('chat', lastSender ?? 'system', message);
+      this.send('chat', lastSender ?? 'system', message, { component: lastComponent });
       lastSender = null;
+      lastComponent = null;
     });
 
     const recordActionBar = (value: unknown) => {
       const segments = toSegments(value);
-      this.send('actionBar', 'actionbar', describeSegments(segments), { segments });
+      /*
+      The plain text, not the rendered one: separators and font markers are how mcp-server writes
+      a line, and putting them in the field a bot sends made the two kinds disagree about a feed
+      they had both read correctly.
+      */
+      this.send('actionBar', 'actionbar', plainSegments(segments), {
+        segments,
+        component: rawComponentOf(value),
+      });
     };
 
     bot.on('actionBar', recordActionBar);
@@ -280,7 +295,10 @@ export class BotHost extends EventEmitter<Events> {
     */
     const recordTitle = (source: string) => (packet: { text?: unknown }) => {
       const segments = toSegments(packet.text);
-      this.send('title', source, describeSegments(segments), { segments });
+      this.send('title', source, plainSegments(segments), {
+        segments,
+        component: rawComponentOf(packet.text),
+      });
     };
 
     bot._client.on('set_title_text' as never, recordTitle('title') as never);
