@@ -33,6 +33,7 @@ export interface RecipeListView {
   tableInReach: boolean;
   stoppedAt: number | null;
   recipes: RecipeView[];
+  onlyWhatTheBotKnows: boolean;
 }
 
 export interface CanCraftView {
@@ -41,6 +42,7 @@ export interface CanCraftView {
   hasRecipe: boolean;
   missing: Ingredient[];
   needsTable: boolean;
+  onlyWhatTheBotKnows: boolean;
 }
 
 function itemName(mcData: IndexedData, id: number): string {
@@ -145,6 +147,7 @@ export const craftingTools: ToolDefinition[] = [
           tableInReach: table !== null,
           stoppedAt: null,
           recipes: recipes.map((recipe) => viewRecipe(mcData, recipe, missingFor(bot, mcData, recipe))),
+          onlyWhatTheBotKnows: false,
         } satisfies RecipeListView);
       }
 
@@ -165,6 +168,7 @@ export const craftingTools: ToolDefinition[] = [
         tableInReach: table !== null,
         stoppedAt: craftable.length >= MAX_LISTED_RECIPES ? MAX_LISTED_RECIPES : null,
         recipes: craftable,
+        onlyWhatTheBotKnows: false,
       } satisfies RecipeListView);
     },
   ),
@@ -190,6 +194,7 @@ export const craftingTools: ToolDefinition[] = [
         tableInReach: table !== null,
         stoppedAt: null,
         recipes,
+        onlyWhatTheBotKnows: false,
       } satisfies RecipeListView);
     },
   ),
@@ -213,6 +218,7 @@ export const craftingTools: ToolDefinition[] = [
           hasRecipe: true,
           missing: [],
           needsTable: false,
+          onlyWhatTheBotKnows: false,
         } satisfies CanCraftView);
       }
 
@@ -226,6 +232,7 @@ export const craftingTools: ToolDefinition[] = [
         hasRecipe: closest !== undefined,
         missing: closest?.missing ?? [],
         needsTable: closest !== undefined && closest.recipe.requiresTable && table === null,
+        onlyWhatTheBotKnows: false,
       } satisfies CanCraftView);
     },
   ),
