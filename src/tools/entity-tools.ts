@@ -31,10 +31,15 @@ export interface DisplaysView {
   displays: DisplayView[];
 }
 
+/*
+type is the entity's id and not prismarine's coarse category. A custom name replaces the label, so
+with the category there the answer for the fixture cow was "Probe Cow (mob)" and nothing said it was
+a cow. The other kind of bot reports the id, and the catalogue now says that is what the field is.
+*/
 function viewEntity(entity: Entity, distance: number): EntityView {
   return {
     label: entity.username ?? entity.name ?? entity.type,
-    type: entity.type,
+    type: entity.name ?? entity.type,
     position: blockPoint(entity.position),
     distance,
   };

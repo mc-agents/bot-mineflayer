@@ -50,6 +50,18 @@ export function entityLabel(entity: EntityLike): string {
   return entity.username ?? entity.name ?? entity.type ?? 'unknown entity';
 }
 
+/*
+The name, and the id after it when a server's name hides what the thing is: an unnamed cow reads
+"cow" and not "cow (cow)", and the fixture cow reads "Probe Cow (cow)". The other kind of bot builds
+the same string, because the sentence is the bot's for a tool the catalogue marks unstructured.
+*/
+export function entityName(entity: EntityLike): string {
+  const label = entityLabel(entity);
+  const id = entity.name ?? entity.type ?? 'unknown entity';
+
+  return label === id ? label : `${label} (${id})`;
+}
+
 export function matchesEntityName(entity: EntityLike, query: string): boolean {
   const needle = plainName(query);
 
@@ -164,7 +176,7 @@ export const interactTools: ToolDefinition[] = [
       await bot.lookAt(entity.position.offset(0, entity.height, 0), true);
       await bot.activateEntity(entity);
 
-      return `Right-clicked ${entityLabel(entity)} (${entity.type}).`;
+      return `Right-clicked ${entityName(entity)}.`;
     },
   ),
 

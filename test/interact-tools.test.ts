@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { EntityLike } from '../src/tools/interact-tools.ts';
-import { entityLabel, findNearestEntity, matchesEntityName } from '../src/tools/interact-tools.ts';
+import { entityLabel, entityName, findNearestEntity, matchesEntityName } from '../src/tools/interact-tools.ts';
 
 function entity(name: string, x: number, extra: Partial<EntityLike> = {}): EntityLike {
   return { name, type: 'mob', position: { x, y: 0, z: 0 }, ...extra };
@@ -61,4 +61,17 @@ test('a player is labelled by username and everything else by its entity name', 
   assert.equal(entityLabel(entity('player', 0, { username: 'Steve' })), 'Steve');
   assert.equal(entityLabel(entity('villager', 0)), 'villager');
   assert.equal(entityLabel({ type: 'object', position: origin }), 'object');
+});
+
+/*
+The sentence a right-click answers with is this bot's own, so the other kind has to write the same
+one. What is asserted is the rule they share: the id goes in brackets only when a server's name has
+hidden it.
+*/
+test('the id is only added when the name is not already the id', () => {
+  assert.equal(entityName(entity('cow', 0)), 'cow');
+  assert.equal(entityName(entity('cow', 0, { name: 'cow', username: undefined })), 'cow');
+  assert.equal(entityName({ name: 'cow', type: 'mob', position: origin, username: 'Probe Cow' }),
+    'Probe Cow (cow)');
+  assert.equal(entityName(entity('player', 0, { username: 'Steve' })), 'Steve (player)');
 });
