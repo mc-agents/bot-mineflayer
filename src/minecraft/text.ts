@@ -26,6 +26,16 @@ function parseJson(value: string): unknown {
   }
 }
 
+/*
+26.x writes a component whose only field is its text with the empty string as the key -- {"": "x"}
+rather than {"text": "x"} -- and the server uses it for whichever pieces it feels like. A reader
+that only knows "text" drops those, so an action bar of three pieces arrives as two and nothing
+says a piece is missing.
+*/
+function ownText(node: { text?: unknown; '' ?: unknown }): unknown {
+  return node.text ?? node[''];
+}
+
 function walk(value: unknown): string {
   if (value === null || value === undefined) {
     return '';
@@ -52,7 +62,7 @@ function walk(value: unknown): string {
   }
 
   const chat = value as ChatLike;
-  const own = `${walk(chat.text)}${walk(chat.extra)}`;
+  const own = `${walk(ownText(chat))}${walk(chat.extra)}`;
 
   return own === '' ? walk(chat.translate) : own;
 }
@@ -127,7 +137,7 @@ function collect(value: unknown, inherited: TextSegment, into: TextSegment[]): v
     color: nbtString(node.color) ?? inherited.color,
   };
 
-  const own = walk(node.text);
+  const own = walk(ownText(node));
   if (own !== '') {
     into.push({ ...style, text: own });
   }

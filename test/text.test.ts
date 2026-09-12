@@ -113,3 +113,25 @@ test('plain chat with no styling stays a single unadorned segment', () => {
   assert.deepEqual(toSegments('hello'), [{ text: 'hello', font: undefined, color: undefined }]);
   assert.equal(describeSegments(toSegments('hello')), 'hello');
 });
+
+/*
+26.x writes a component whose only field is its text with the empty string as the key. Paper uses
+it for whichever pieces it feels like: an action bar of three sent as JSON arrived as
+{"text":"uno", extra:[{color:"red","text":"dos"},{"":"tres"}]}, and a reader that only knows
+"text" dropped the third without saying so.
+*/
+test('a component that names its text with the empty key is read', () => {
+  assert.equal(toPlainText({ '': 'tres' }), 'tres');
+  assert.equal(toPlainText({ text: 'uno', extra: [{ color: 'red', text: 'dos' }, { '': 'tres' }] }), 'unodostres');
+
+  assert.deepEqual(
+    toSegments({ text: 'uno', extra: [{ color: 'red', text: 'dos' }, { '': 'tres' }] })
+      .map((segment) => segment.text),
+    ['uno', 'dos', 'tres'],
+  );
+});
+
+/* text wins when both are there, because that is the field the component actually declares. */
+test('an explicit text field is preferred to the empty key', () => {
+  assert.equal(toPlainText({ text: 'named', '': 'shorthand' }), 'named');
+});
