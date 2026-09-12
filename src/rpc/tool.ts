@@ -1,5 +1,6 @@
 import * as z from 'zod';
 import type { Bot } from 'mineflayer';
+import type { RecipeBook } from '../minecraft/recipe-book.ts';
 import type { ScoreTracker } from '../minecraft/scoreboard.ts';
 import { ToolError } from './protocol.ts';
 
@@ -7,6 +8,7 @@ export interface ToolContext {
   bot: Bot;
   username: string;
   scores: ScoreTracker;
+  recipes: RecipeBook;
   /* Aborts when the call is cancelled or its deadline passes. Tools that can stop early watch it. */
   signal: AbortSignal;
 }

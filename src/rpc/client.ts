@@ -55,7 +55,7 @@ export class RpcClient {
     this.bot = bot;
     this.dispatcher = new Dispatcher(
       TOOLS,
-      { requireBot: () => bot.requireBot(), get username() { return bot.username; }, scores: bot.scores },
+      { requireBot: () => bot.requireBot(), get username() { return bot.username; }, scores: bot.scores, recipes: bot.recipes },
       (result) => this.write(result),
     );
 

@@ -2,15 +2,33 @@ import * as z from 'zod';
 import type { Bot } from 'mineflayer';
 import type { Block } from 'prismarine-block';
 import type { Recipe } from 'prismarine-recipe';
+import type { Window } from 'prismarine-windows';
 import minecraftData from 'minecraft-data';
 import type { IndexedData } from 'minecraft-data';
 import { type ToolDefinition, defineTool, structured } from '../rpc/tool.ts';
 import { walkTo } from '../minecraft/navigate.ts';
 import { plainName } from '../minecraft/names.ts';
+import { toPlainText } from '../minecraft/text.ts';
+import type { BookEntry } from '../minecraft/recipe-book.ts';
 
 const TABLE_SEARCH_RADIUS = 16;
 const TABLE_REACH = 3;
 const MAX_LISTED_RECIPES = 100;
+
+/** The player's own inventory, which is the window a two-by-two craft happens in. */
+const OWN_WINDOW = 0;
+
+/** First in a crafting window, whichever kind it is. */
+const RESULT_SLOT = 0;
+
+/** prismarine-windows for the block; the player's own grid has no window type of its own. */
+const CRAFTING_WINDOW = 'minecraft:crafting';
+
+/** Shift-click, which takes the whole result rather than picking it up. */
+const QUICK_MOVE = 1;
+
+/** How long to give the server to fill the grid. Two seconds is a great deal longer than it needs. */
+const PLACE_PATIENCE_TICKS = 40;
 
 export interface Ingredient {
   name: string;
@@ -123,6 +141,68 @@ function held(bot: Bot, itemId: number): number {
   return bot.inventory.items()
     .filter((stack) => stack.type === itemId)
     .reduce((total, stack) => total + stack.count, 0);
+}
+
+/*
+The server lays the grid out and the bot takes the result. mineflayer's own craft does the laying
+out, and on 26.1 it puts the ingredients in cells the recipe does not use: two lots of sticks came
+back as four sticks and an oak_button. Which recipe to place is the only thing the server needs
+told, and it cannot be wrong about a recipe of its own.
+*/
+async function placeAndTake(bot: Bot, entry: BookEntry, windowId: number): Promise<boolean> {
+  bot._client.write('craft_recipe_request', {
+    windowId,
+    recipeId: entry.displayId,
+    makeAll: false,
+  });
+
+  for (let tick = 0; tick < PLACE_PATIENCE_TICKS; tick++) {
+    const result = (bot.currentWindow ?? bot.inventory).slots[RESULT_SLOT];
+
+    if (result?.type === entry.itemId) {
+      await bot.clickWindow(RESULT_SLOT, 0, QUICK_MOVE);
+      return true;
+    }
+
+    await bot.waitForTicks(1);
+  }
+
+  return false;
+}
+
+/*
+Whatever is left in the grid belongs in the inventory: a craft that stopped half way must not
+strand its ingredients somewhere the next tool cannot see them. Closing is what hands them back,
+and the player's own grid is closed the same way a client closes it -- by saying so for window
+zero, which has no window object to close.
+*/
+async function returnGrid(bot: Bot, window: Window | null): Promise<void> {
+  if (window === null) {
+    bot._client.write('close_window', { windowId: OWN_WINDOW });
+  } else {
+    bot.closeWindow(window);
+  }
+
+  await bot.waitForTicks(2);
+}
+
+/**
+ * Why nothing came out, in the words of the static recipe table. The server says nothing at all
+ * when it will not place a recipe, and missing ingredients is far and away the usual reason.
+ */
+function explainEmptyGrid(bot: Bot, mcData: IndexedData, item: { id: number; name: string }, table: Block | null): string {
+  const closest = bot.recipesAll(item.id, null, table)
+    .map((recipe) => ({ recipe, missing: missingFor(bot, mcData, recipe) }))
+    .sort((a, b) => a.missing.length - b.missing.length)[0];
+
+  if (closest === undefined || closest.missing.length === 0) {
+    return `The server placed no recipe for ${item.name} and gave no reason. `
+      + 'get-recipe shows what it takes and list-inventory what the bot is carrying.';
+  }
+
+  const missing = closest.missing.map(({ name, count }) => `${name} x${count}`).join(', ');
+
+  return `Cannot craft ${item.name}. Missing ${missing}`;
 }
 
 export const craftingTools: ToolDefinition[] = [
@@ -249,47 +329,62 @@ export const craftingTools: ToolDefinition[] = [
       const mcData = minecraftData(bot.version);
       const item = resolveItem(mcData, args.outputItem);
       const amount = args.amount ?? 1;
-      const table = await reachableCraftingTable(bot, mcData);
-      const recipe = bot.recipesFor(item.id, null, amount, table)[0]
-        ?? bot.recipesFor(item.id, null, 1, table)[0];
+      const entry = ctx.recipes.forItem(item.id)[0];
 
-      if (!recipe) {
-        const known = bot.recipesAll(item.id, null, table);
-
-        if (known.length === 0) {
-          throw new Error(`No recipe produces ${item.name}`);
-        }
-
-        const closest = known
-          .map((candidate) => ({ candidate, missing: missingFor(bot, mcData, candidate) }))
-          .sort((a, b) => a.missing.length - b.missing.length)[0];
-
-        const missing = closest?.missing.map(({ name, count }) => `${name} x${count}`).join(', ');
+      if (entry === undefined) {
+        /* The same sentence the other kind of bot refuses with: the two share the constraint. */
         throw new Error(
-          `Cannot craft ${item.name}. Missing ${missing ?? 'ingredients'}` +
-          `${closest?.candidate.requiresTable && !table ? ' and a crafting table in reach' : ''}`,
+          `No recipe produces ${item.name}, or the server has not unlocked one for this bot. ` +
+          'A client is only told the recipes its book holds.',
+        );
+      }
+
+      const open = bot.currentWindow;
+
+      if (open !== null && open.type !== CRAFTING_WINDOW) {
+        throw new Error(
+          `Crafting needs the player's own grid or a crafting table, and "${toPlainText(open.title)}" ` +
+          'is open in front of both. Close it first.',
+        );
+      }
+
+      /* A crafting window the caller left open is a table, and using it beats walking to another. */
+      const table = entry.needsTable && open === null
+        ? await reachableCraftingTable(bot, mcData)
+        : null;
+
+      if (entry.needsTable && open === null && table === null) {
+        throw new Error(
+          `Crafting ${item.name} needs a grid bigger than the two-by-two a player carries, and ` +
+          `no crafting table is within ${TABLE_SEARCH_RADIUS} blocks.`,
         );
       }
 
       /*
-      Counted rather than predicted. mineflayer places the grid itself, and on 26.1 that goes wrong
-      in ways it does not notice: a run that asked for two lots of sticks came back saying it had
-      made eight and had instead left an oak_button and four sticks, with five planks gone. A
-      sentence that reports what the inventory actually gained cannot say that.
+      Counted rather than predicted, which is what caught the grid being laid out wrongly in the
+      first place: a run that asked for two lots of sticks reported eight and had actually made
+      four and an oak_button. A sentence about what the inventory gained cannot say that.
       */
       const before = held(bot, item.id);
+      const opened = table === null ? null : await bot.openBlock(table);
+      const windowId = opened?.id ?? open?.id ?? OWN_WINDOW;
+      let placed = 0;
 
-      await bot.craft(recipe, amount, table ?? undefined);
-      await bot.waitForTicks(2);
+      try {
+        while (placed < amount && await placeAndTake(bot, entry, windowId)) {
+          placed++;
+        }
+      } finally {
+        /* Only what this tool opened is closed; a window the caller was using stays up. */
+        if (open === null) {
+          await returnGrid(bot, opened);
+        }
+      }
 
       const gained = held(bot, item.id) - before;
 
       if (gained <= 0) {
-        throw new Error(
-          `Nothing was crafted. The recipe for ${item.name} was found and placed, but the ` +
-          'inventory did not gain any. This bot places the crafting grid itself and that is the ' +
-          'part that fails on newer servers; a fabric bot crafts through the server instead.',
-        );
+        throw new Error(explainEmptyGrid(bot, mcData, item, table));
       }
 
       return `Crafted ${item.name} x${gained}.`;

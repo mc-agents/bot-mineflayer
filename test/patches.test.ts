@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { acceptResourcePacks } from '../src/bot/patches.ts';
+import minecraftData from 'minecraft-data';
+import { acceptResourcePacks, fixRecipeDisplayStacks } from '../src/bot/patches.ts';
 import type { ResourcePackClient } from '../src/bot/patches.ts';
 
 function fakeClient(): {
@@ -69,4 +70,34 @@ test('every offer is answered, so a second pack does not stall configuration', (
     'pack-two',
     'pack-two',
   ]);
+});
+
+/*
+The swap this corrects is silent: both fields are varints, so nothing fails to parse and a recipe
+for four sticks reads as recipe 947 for one stick. What can break is the walk through the protocol
+definition to the field, which is why it is walked here against the data the bot actually ships.
+*/
+test('the stack inside a recipe display is read item first, count second', () => {
+  fixRecipeDisplayStacks('26.1');
+
+  const types = minecraftData('26.1').protocol.play.toClient.types as Record<string, unknown>;
+  const display = types.SlotDisplay as [string, { name?: string; type?: unknown }[]];
+  const data = display[1].find((field) => field.name === 'data');
+  const fields = (data?.type as ['switch', { fields: Record<string, unknown> }])[1].fields;
+
+  assert.equal(fields.item_stack, 'SlotDisplayStack');
+
+  const stack = types.SlotDisplayStack as [string, { name: string; type: unknown }[]];
+
+  assert.deepEqual(stack[1].slice(0, 2).map((field) => field.name), ['itemId', 'itemCount']);
+});
+
+test('correcting a version twice leaves the definition alone the second time', () => {
+  fixRecipeDisplayStacks('26.1');
+  fixRecipeDisplayStacks('26.1');
+
+  const types = minecraftData('26.1').protocol.play.toClient.types as Record<string, unknown>;
+  const stack = types.SlotDisplayStack as [string, { name: string }[]];
+
+  assert.equal(stack[1][0]?.name, 'itemId');
 });

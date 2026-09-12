@@ -1,5 +1,6 @@
 import type { Bot } from 'mineflayer';
 import { describeError, log } from '../logger.ts';
+import type { RecipeBook } from '../minecraft/recipe-book.ts';
 import type { ScoreTracker } from '../minecraft/scoreboard.ts';
 import { EXCLUSIVE_TOOLS } from './catalog-hashes.ts';
 import { ToolError } from './protocol.ts';
@@ -10,6 +11,7 @@ export interface ToolHost {
   requireBot: () => Bot;
   username: string;
   scores: ScoreTracker;
+  recipes: RecipeBook;
 }
 
 interface InFlight {
@@ -201,6 +203,7 @@ export class Dispatcher {
         bot: this.host.requireBot(),
         username: this.host.username,
         scores: this.host.scores,
+        recipes: this.host.recipes,
         signal: abort.signal,
       };
 

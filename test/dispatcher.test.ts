@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import * as z from 'zod';
 import type { Bot } from 'mineflayer';
+import { RecipeBook } from '../src/minecraft/recipe-book.ts';
 import { ScoreTracker } from '../src/minecraft/scoreboard.ts';
 import { Dispatcher } from '../src/rpc/dispatcher.ts';
 import { botError } from '../src/rpc/protocol.ts';
@@ -14,7 +15,7 @@ function harness(tools = sampleTools(), requireBot: () => Bot = () => STUB_BOT) 
   const results: ResultMessage[] = [];
   const dispatcher = new Dispatcher(
     new Map(tools.map((tool) => [tool.name, tool])),
-    { requireBot, username: 'tester', scores: new ScoreTracker() },
+    { requireBot, username: 'tester', scores: new ScoreTracker(), recipes: new RecipeBook() },
     (result) => results.push(result),
   );
 

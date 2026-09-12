@@ -36,7 +36,7 @@ mcp-server :8765 ◀── the bot dials ── RpcClient ── Dispatcher ─�
 | --- | --- |
 | `src/rpc/` | framing, the link, the dispatcher, `defineTool`, the tool catalogue |
 | `src/bot/` | the game connection and the protocol patches mineflayer needs |
-| `src/minecraft/` | game knowledge: chat components, NBT, windows, scoreboards, dialogs |
+| `src/minecraft/` | game knowledge: chat components, NBT, windows, scoreboards, dialogs, the recipe book |
 | `src/tools/` | the tool bodies, one file per group |
 | `scripts/rpc-cli.ts` | stands in for mcp-server so the bot can be driven by hand |
 
@@ -156,12 +156,18 @@ now (`dev/fixture` in mcp-server), so the case is one command to reproduce, and 
 round it. Library territory rather than ours, and another instance of the lag this arrangement
 exists for.
 
-**Crafting places the grid wrong on 26.1.** mineflayer fills the crafting slots itself rather than
-asking the server to, and on 26.1 that goes astray: eight oak planks asked for two lots of sticks
-came back as four sticks and an oak button, with five planks gone. `craft-item` now counts what the
-inventory actually gained instead of predicting it, so the answer is true even when the craft was
-not, but the underlying placement is mineflayer's and is not fixed here. A `fabric` bot asks the
-server to place the recipe and gets it right.
+**Only an unlocked recipe can be crafted.** `craft-item` asks the server to lay the grid out, the
+way a real client does, and the server finds the recipe in the book it has sent this player. So a
+recipe the server has not unlocked is one this bot cannot ask for, and it refuses in those words.
+Vanilla unlocks a recipe when the player first holds its ingredients, so in practice having the
+materials is enough. `get-recipe` and `list-recipes` still read the static table and list what the
+game can make whichever way the book stands, which is why the catalogue marks them as being about
+the bot. A `fabric` bot has exactly the same constraint, for the same reason.
+
+mineflayer's own `bot.craft` fills the slots itself, and on 26.1 it puts them in the wrong cells:
+eight oak planks asked for two lots of sticks came back as four sticks and an oak button, with five
+planks gone. That is what asking the server replaced, and `craft-item` still counts what the
+inventory gained rather than predicting it, so a half-finished craft is reported as what it was.
 
 **A kick is not retried.** The link to mcp-server reconnects on its own, but a bot kicked out of
 the game stays out until the server sends another `connect`.

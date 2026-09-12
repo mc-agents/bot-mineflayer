@@ -4,6 +4,8 @@ import type { Bot } from 'mineflayer';
 import pathfinderPkg from 'mineflayer-pathfinder';
 import { describeError, log } from '../logger.ts';
 import { connectOverride } from '../minecraft/connect.ts';
+import { RecipeBook } from '../minecraft/recipe-book.ts';
+import type { RecipeBookClient } from '../minecraft/recipe-book.ts';
 import { ScoreTracker } from '../minecraft/scoreboard.ts';
 import type { PacketSource } from '../minecraft/scoreboard.ts';
 import { plainSegments, rawComponentOf, toSegments } from '../minecraft/text.ts';
@@ -71,6 +73,7 @@ function dialFailure(error: Error): string {
 
 export class BotHost extends EventEmitter<Events> {
   readonly scores = new ScoreTracker();
+  readonly recipes = new RecipeBook();
 
   private bot: Bot | null = null;
   private spec: JoinSpec | null = null;
@@ -153,6 +156,7 @@ export class BotHost extends EventEmitter<Events> {
 
     this.bot = bot;
     this.scores.attach(bot._client as unknown as PacketSource);
+    this.recipes.attach(bot._client as unknown as RecipeBookClient);
     applyProtocolPatches(bot, spec.username);
     this.registerHandlers(bot);
 
