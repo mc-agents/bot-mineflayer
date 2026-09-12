@@ -117,6 +117,12 @@ async function reachableCraftingTable(bot: Bot, mcData: IndexedData): Promise<Bl
   return table;
 }
 
+function held(bot: Bot, itemId: number): number {
+  return bot.inventory.items()
+    .filter((stack) => stack.type === itemId)
+    .reduce((total, stack) => total + stack.count, 0);
+}
+
 export const craftingTools: ToolDefinition[] = [
   defineTool(
     'list-recipes',
@@ -258,8 +264,28 @@ export const craftingTools: ToolDefinition[] = [
         );
       }
 
+      /*
+      Counted rather than predicted. mineflayer places the grid itself, and on 26.1 that goes wrong
+      in ways it does not notice: a run that asked for two lots of sticks came back saying it had
+      made eight and had instead left an oak_button and four sticks, with five planks gone. A
+      sentence that reports what the inventory actually gained cannot say that.
+      */
+      const before = held(bot, item.id);
+
       await bot.craft(recipe, amount, table ?? undefined);
-      return `Crafted ${item.name} x${recipe.result.count * amount}.`;
+      await bot.waitForTicks(2);
+
+      const gained = held(bot, item.id) - before;
+
+      if (gained <= 0) {
+        throw new Error(
+          `Nothing was crafted. The recipe for ${item.name} was found and placed, but the ` +
+          'inventory did not gain any. This bot places the crafting grid itself and that is the ' +
+          'part that fails on newer servers; a fabric bot crafts through the server instead.',
+        );
+      }
+
+      return `Crafted ${item.name} x${gained}.`;
     },
   ),
 ];

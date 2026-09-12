@@ -142,5 +142,12 @@ cluster, so that trade was taken deliberately rather than forgotten.
 no field definition, so it cannot be serialised; sending the `latest` shape makes the server drop
 the connection. Dialogs are read, never answered. This is one of the reasons `bot-fabric` exists.
 
+**Crafting places the grid wrong on 26.1.** mineflayer fills the crafting slots itself rather than
+asking the server to, and on 26.1 that goes astray: eight oak planks asked for two lots of sticks
+came back as four sticks and an oak button, with five planks gone. `craft-item` now counts what the
+inventory actually gained instead of predicting it, so the answer is true even when the craft was
+not, but the underlying placement is mineflayer's and is not fixed here. A `fabric` bot asks the
+server to place the recipe and gets it right.
+
 **A kick is not retried.** The link to mcp-server reconnects on its own, but a bot kicked out of
 the game stays out until the server sends another `connect`.
