@@ -149,6 +149,13 @@ definitions for it. `join-server` says so in as many words and points at the oth
 two-kinds arrangement exists for, and it is not a bug to be fixed here -- it is what following a
 reimplementation costs.
 
+**Pathfinding does not get round a wall on 26.1.** `mineflayer-pathfinder` is configured with
+`Movements` on spawn and still does not move: asked to reach a point eight blocks away with a
+three-block wall between, it sat where it was for the whole timeout. The fixture world has that wall
+now (`dev/fixture` in mcp-server), so the case is one command to reproduce, and a `fabric` bot walks
+round it. Library territory rather than ours, and another instance of the lag this arrangement
+exists for.
+
 **Crafting places the grid wrong on 26.1.** mineflayer fills the crafting slots itself rather than
 asking the server to, and on 26.1 that goes astray: eight oak planks asked for two lots of sticks
 came back as four sticks and an oak button, with five planks gone. `craft-item` now counts what the
