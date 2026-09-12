@@ -11,6 +11,7 @@ interface ChatLike {
   text?: unknown;
   extra?: unknown;
   translate?: unknown;
+  with?: unknown;
 }
 
 interface NbtLike {
@@ -69,7 +70,59 @@ function walk(value: unknown): string {
   const chat = value as ChatLike;
   const own = `${walk(ownText(chat))}${walk(chat.extra)}`;
 
-  return own === '' ? walk(chat.translate) : own;
+  return own === '' ? translated(chat) : own;
+}
+
+/*
+A vanilla window title -- a chest's, a furnace's, a villager's -- is a translate key and not text, so
+leaving it alone made read-window answer "container.chest" where the client plainly draws "Chest",
+and made a wait-for-window pattern have to be written against a key nobody sees. The other kind of
+bot is a Minecraft client and resolves it, which is how the two came to name one window two ways.
+
+The table is minecraft-data's and the bot hands it over once, because this module has no bot. An
+unknown key falls back to itself, which is what the client does too.
+*/
+let translations: Record<string, string> = {};
+
+export function useTranslations(table: Record<string, string> | undefined): void {
+  translations = table ?? {};
+}
+
+function translated(node: ChatLike): string {
+  const key = nbtString(node.translate);
+
+  if (key === undefined) {
+    return walk(node.translate);
+  }
+
+  const pattern = translations[key];
+
+  if (pattern === undefined) {
+    return key;
+  }
+
+  return fill(pattern, asArray(node.with).map((argument) => walk(argument)));
+}
+
+function asArray(value: unknown): unknown[] {
+  if (value === null || value === undefined) {
+    return [];
+  }
+  if (value !== null && typeof value === 'object' && isNbt(value)) {
+    return asArray(value.value);
+  }
+  return Array.isArray(value) ? value : [value];
+}
+
+/* Both forms Minecraft's own translations use: %s in order, and %1$s by position. */
+function fill(pattern: string, args: string[]): string {
+  let next = 0;
+
+  return pattern.replace(/%(?:(\d+)\$)?s/g, (_match, position: string | undefined) => {
+    const index = position === undefined ? next++ : Number(position) - 1;
+
+    return args[index] ?? '';
+  });
 }
 
 export function toPlainText(value: unknown): string {
@@ -150,9 +203,9 @@ function collect(value: unknown, inherited: TextSegment, into: TextSegment[]): v
   collect(node.extra, style, into);
 
   if (own === '' && into.length === 0) {
-    const translated = walk(node.translate);
-    if (translated !== '') {
-      into.push({ ...style, text: translated });
+    const fromKey = translated(node);
+    if (fromKey !== '') {
+      into.push({ ...style, text: fromKey });
     }
   }
 }

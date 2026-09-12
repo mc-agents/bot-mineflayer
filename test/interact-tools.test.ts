@@ -75,3 +75,17 @@ test('the id is only added when the name is not already the id', () => {
     'Probe Cow (cow)');
   assert.equal(entityName(entity('player', 0, { username: 'Steve' })), 'Steve (player)');
 });
+
+/*
+The name on a thing's tag is what a person reading the screen sees, so it has to win over the id and
+it has to be searchable. It arrives in metadata and nothing mineflayer exposes carries it, which is
+how a cow a server had called "Probe Cow" came back as "cow".
+*/
+test('a custom name wins over the entity id and can be searched for', () => {
+  const named = entity('cow', 0, { metadata: { 2: { text: 'Probe Cow' } } });
+
+  assert.equal(entityLabel(named), 'Probe Cow');
+  assert.equal(entityName(named), 'Probe Cow (cow)');
+  assert.equal(matchesEntityName(named, 'probe'), true);
+  assert.equal(matchesEntityName(named, 'cow'), true);
+});

@@ -2,7 +2,7 @@ import * as z from 'zod';
 import type { Entity } from 'prismarine-entity';
 import { type ToolDefinition, defineTool, structured } from '../rpc/tool.ts';
 import { describeSegments, toSegments } from '../minecraft/text.ts';
-import { plainName } from '../minecraft/names.ts';
+import { customName, plainName } from '../minecraft/names.ts';
 import { blockPoint } from '../minecraft/view.ts';
 import type { Point } from '../minecraft/view.ts';
 
@@ -38,7 +38,7 @@ a cow. The other kind of bot reports the id, and the catalogue now says that is 
 */
 function viewEntity(entity: Entity, distance: number): EntityView {
   return {
-    label: entity.username ?? entity.name ?? entity.type,
+    label: customName(entity) ?? entity.username ?? entity.name ?? entity.type,
     type: entity.name ?? entity.type,
     position: blockPoint(entity.position),
     distance,
@@ -91,12 +91,11 @@ A display entity keeps its text in metadata slot 23 on 26.1. Servers draw name t
 NPC labels with them, so without this they show up as "text_display" and nothing else.
 */
 const DISPLAY_TEXT_SLOT = 23;
-const CUSTOM_NAME_SLOT = 2;
 
 function displayText(entity: Entity): string {
   const metadata = (entity as unknown as { metadata?: Record<number, unknown> }).metadata ?? {};
 
-  return describeSegments(toSegments(metadata[DISPLAY_TEXT_SLOT] ?? metadata[CUSTOM_NAME_SLOT]));
+  return describeSegments(toSegments(metadata[DISPLAY_TEXT_SLOT])) || (customName(entity) ?? '');
 }
 
 export const displayTools: ToolDefinition[] = [

@@ -79,7 +79,12 @@ export function viewWindow(window: Window): WindowView {
     type: window.type,
     slotCount: window.slots.length,
     containerSlots: [0, Math.max(window.inventoryStart - 1, 0)],
-    inventorySlots: [window.inventoryStart, window.inventoryEnd],
+    /*
+    The catalogue says first and last, and inventoryEnd is one past the last: a 63-slot chest was
+    reported as running to slot 63, which does not exist. A caller that clamped a click to the range
+    it was given would have been refused by the server.
+    */
+    inventorySlots: [window.inventoryStart, Math.max(window.inventoryEnd - 1, window.inventoryStart)],
     filled,
   };
 }

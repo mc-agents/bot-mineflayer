@@ -9,9 +9,10 @@ function botWithSounds(sounds: Record<number, { name: string }>): Bot {
 
 const REGISTRY = botWithSounds({ 147: { name: 'block.basalt.fall' } });
 
-test('a sound arrives either as a registry index or as its own name', () => {
-  assert.equal(soundName(REGISTRY, { soundId: 147 }), 'block.basalt.fall');
-  assert.equal(soundName(REGISTRY, 147), 'block.basalt.fall');
+/* An id is namespaced, per the protocol document, and the registry hands out the bare path. */
+test('a sound arrives either as a registry index or as its own name, namespaced either way', () => {
+  assert.equal(soundName(REGISTRY, { soundId: 147 }), 'minecraft:block.basalt.fall');
+  assert.equal(soundName(REGISTRY, 147), 'minecraft:block.basalt.fall');
   assert.equal(
     soundName(REGISTRY, { data: { soundName: 'minecraft:replaced.block.wood.step' } }),
     'minecraft:replaced.block.wood.step',

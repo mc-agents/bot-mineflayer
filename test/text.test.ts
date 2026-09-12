@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { describeSegments, stripFormatting, toPlainText, toSegments } from '../src/minecraft/text.ts';
+import { describeSegments, stripFormatting, toPlainText, toSegments, useTranslations } from '../src/minecraft/text.ts';
 
 test('plain strings come back trimmed and without colour codes', () => {
   assert.equal(toPlainText('Village Shop'), 'Village Shop');
@@ -24,11 +24,28 @@ test('the NBT shape the server actually sends is unwrapped', () => {
   assert.equal(toPlainText({ type: 'string', value: 'Click to buy' }), 'Click to buy');
 });
 
-test('a vanilla title arrives as a translate key rather than text', () => {
-  assert.equal(
-    toPlainText({ type: 'compound', value: { translate: { type: 'string', value: 'container.chest' } } }),
-    'container.chest',
-  );
+test('a translate key is resolved once the table is there, and falls back to itself when it is not', () => {
+  const chest = { type: 'compound', value: { translate: { type: 'string', value: 'container.chest' } } };
+
+  useTranslations(undefined);
+  assert.equal(toPlainText(chest), 'container.chest');
+
+  useTranslations({ 'container.chest': 'Chest' });
+  assert.equal(toPlainText(chest), 'Chest');
+  assert.equal(toPlainText({ translate: 'nothing.knows.this' }), 'nothing.knows.this');
+});
+
+/*
+The arguments a key takes are how a vanilla chat line is built, and a window title that names its
+owner uses the same shape. Both forms Minecraft's own translations use are asserted.
+*/
+test('translation arguments are filled in order and by position', () => {
+  useTranslations({ 'chat.type.text': '<%s> %s', 'reversed': '%2$s then %1$s' });
+
+  assert.equal(toPlainText({ translate: 'chat.type.text', with: [{ text: 'Steve' }, { text: 'hello' }] }),
+    '<Steve> hello');
+  assert.equal(toPlainText({ translate: 'reversed', with: [{ text: 'one' }, { text: 'two' }] }),
+    'two then one');
 });
 
 test('plain chat components and their extra parts are joined', () => {

@@ -4,7 +4,7 @@ import type { Entity } from 'prismarine-entity';
 import { Vec3 } from 'vec3';
 import { type ToolDefinition, coordinateArgs, defineTool, floorCoordinates } from '../rpc/tool.ts';
 import { walkTo } from '../minecraft/navigate.ts';
-import { plainName } from '../minecraft/names.ts';
+import { customName, plainName } from '../minecraft/names.ts';
 import { readLabel } from '../minecraft/window.ts';
 
 const BLOCK_REACH = 3;
@@ -27,6 +27,7 @@ export interface EntityLike {
   username?: string;
   type?: string;
   position: Point;
+  metadata?: Record<number, unknown>;
 }
 
 export interface RankedEntity<T> {
@@ -47,7 +48,7 @@ export interface EntitySearchOptions<T> {
 }
 
 export function entityLabel(entity: EntityLike): string {
-  return entity.username ?? entity.name ?? entity.type ?? 'unknown entity';
+  return customName(entity) ?? entity.username ?? entity.name ?? entity.type ?? 'unknown entity';
 }
 
 /*
@@ -69,7 +70,7 @@ export function matchesEntityName(entity: EntityLike, query: string): boolean {
     return false;
   }
 
-  return [entity.name, entity.username]
+  return [entity.name, entity.username, customName(entity)]
     .filter((value): value is string => typeof value === 'string')
     .some((value) => value.toLowerCase().includes(needle));
 }

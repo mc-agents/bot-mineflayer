@@ -12,6 +12,9 @@ import type { Point } from '../minecraft/view.ts';
 import { type ToolDefinition, coordinateArgs, defineTool, floorCoordinates, structured } from '../rpc/tool.ts';
 
 const MAX_FIND_BLOCKS_COUNT = 256;
+
+/* How many extra findBlocks has to return before the nearest count of them are really the nearest. */
+const OVERSCAN = 8;
 const REACH_RANGE = 2;
 const MAX_BLOCK_ENTITY_JSON = 2_000;
 
@@ -95,20 +98,32 @@ export const blockTools: ToolDefinition[] = [
 
       const maxDistance = args.maxDistance ?? 16;
       const count = Math.min(args.count ?? 1, MAX_FIND_BLOCKS_COUNT);
+      /*
+      The catalogue says nearest first, and findBlocks does not promise that: it walks columns in
+      order of horizontal distance and takes the first count it meets, so asking for three diamond
+      blocks out of a nine-block patch returned three that were not the three closest. Over-fetching
+      and sorting is what makes the promise true, and the other kind of bot sorts.
+      */
       const found = bot.findBlocks({
         point: bot.entity.position,
         matching: blockInfo.id,
         maxDistance,
-        count,
+        count: Math.min(count * OVERSCAN, MAX_FIND_BLOCKS_COUNT * OVERSCAN),
       });
+
+      const nearest = found
+        .map((position) => ({ position, distance: bot.entity.position.distanceTo(position) }))
+        .sort((a, b) => a.distance - b.distance)
+        .slice(0, count)
+        .map(({ position }) => blockPoint(position));
 
       const view: FoundBlocksView = {
         blockType: args.blockType,
         maxDistance,
-        positions: found.map(blockPoint),
+        positions: nearest,
       };
 
-      return structured(`${found.length} found`, view);
+      return structured(`${nearest.length} found`, view);
     },
   ),
 

@@ -8,6 +8,7 @@ import { ScoreTracker } from '../minecraft/scoreboard.ts';
 import type { PacketSource } from '../minecraft/scoreboard.ts';
 import { describeSegments, toSegments } from '../minecraft/text.ts';
 import { describeDialog, soundName } from '../minecraft/screen.ts';
+import { useTranslations } from '../minecraft/text.ts';
 import type { SoundPacket } from '../minecraft/screen.ts';
 import type { RawEvent } from '../rpc/events.ts';
 import { botError } from '../rpc/protocol.ts';
@@ -135,6 +136,8 @@ export class BotHost extends EventEmitter<Events> {
 
     try {
       await this.awaitSpawn(bot, spec.spawnTimeoutMs);
+      /* The table comes with the version, and the version is only settled once the handshake is. */
+      useTranslations((bot.registry as unknown as { language?: Record<string, string> }).language);
     } catch (error) {
       this.lastError = describeError(error);
       this.quit('join failed');
