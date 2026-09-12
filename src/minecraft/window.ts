@@ -1,7 +1,7 @@
 import type { Bot } from 'mineflayer';
 import type { Item } from 'prismarine-item';
 import type { Window } from 'prismarine-windows';
-import { toPlainText } from './text.ts';
+import { rawComponentOf, toPlainText } from './text.ts';
 
 export interface SlotView {
   slot: number;
@@ -9,6 +9,8 @@ export interface SlotView {
   count: number;
   label: string | null;
   lore: string[];
+  labelComponent: unknown;
+  loreComponents: unknown[];
 }
 
 /** A stack that is not in a numbered slot: under the cursor, or on its way to the ground. */
@@ -17,6 +19,8 @@ export interface HeldView {
   count: number;
   label: string | null;
   lore: string[];
+  labelComponent: unknown;
+  loreComponents: unknown[];
 }
 
 export interface WindowView {
@@ -33,16 +37,28 @@ export function readLabel(item: Item): string | null {
   return text === '' ? null : text;
 }
 
+/*
+Blank lines kept. A blank lore line is where a menu puts its spacing, and the line below it sits
+where the server put it -- the same reason a blank sign line is reported as one. Dropping them also
+broke the pairing with the components below, which is by position.
+*/
 export function readLore(item: Item): string[] {
+  return loreLines(item).map((line) => toPlainText(line));
+}
+
+/** The components those lines were written as, for mcp-server to flatten itself. */
+export function loreComponents(item: Item): unknown[] {
+  return loreLines(item).map(rawComponentOf);
+}
+
+function loreLines(item: Item): unknown[] {
   const raw = item.customLore;
 
   if (raw === null || raw === undefined) {
     return [];
   }
 
-  return (Array.isArray(raw) ? raw : [raw])
-    .map((line) => toPlainText(line))
-    .filter((line) => line !== '');
+  return Array.isArray(raw) ? raw : [raw];
 }
 
 export function viewSlot(item: Item): SlotView {
@@ -52,6 +68,8 @@ export function viewSlot(item: Item): SlotView {
     count: item.count,
     label: readLabel(item),
     lore: readLore(item),
+    labelComponent: rawComponentOf(item.customName),
+    loreComponents: loreComponents(item),
   };
 }
 
@@ -66,6 +84,8 @@ export function viewHeld(item: Item | null | undefined): HeldView | null {
     count: item.count,
     label: readLabel(item),
     lore: readLore(item),
+    labelComponent: rawComponentOf(item.customName),
+    loreComponents: loreComponents(item),
   };
 }
 

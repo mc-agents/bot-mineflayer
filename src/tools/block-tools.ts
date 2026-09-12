@@ -111,9 +111,18 @@ export const blockTools: ToolDefinition[] = [
         count: Math.min(count * OVERSCAN, MAX_FIND_BLOCKS_COUNT * OVERSCAN),
       });
 
+      /*
+      Between block positions, not to the middle of a block, and ties broken by coordinate: both
+      are what the fabric bot does, and two bots standing on one block have to answer with the
+      same list or the comparison suite reports where they were standing as a finding.
+      */
+      const from = bot.entity.position.floored();
       const nearest = found
-        .map((position) => ({ position, distance: bot.entity.position.distanceTo(position) }))
-        .sort((a, b) => a.distance - b.distance)
+        .map((position) => ({ position, distance: from.distanceTo(position) }))
+        .sort((a, b) => a.distance - b.distance
+          || a.position.x - b.position.x
+          || a.position.y - b.position.y
+          || a.position.z - b.position.z)
         .slice(0, count)
         .map(({ position }) => blockPoint(position));
 
