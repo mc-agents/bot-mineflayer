@@ -152,3 +152,29 @@ test('a component that names its text with the empty key is read', () => {
 test('an explicit text field is preferred to the empty key', () => {
   assert.equal(toPlainText({ text: 'named', '': 'shorthand' }), 'named');
 });
+
+/*
+prismarine hands over a ChatMessage rather than the component the server sent: the instance exposes
+text and extra and keeps font and colour in a `json` property. Walking the instance got the words
+and lost the fonts, and a real server's boss bar -- three labels in three fonts -- came back with
+none. The raw component is what carries the style.
+*/
+test('the raw component inside a prismarine wrapper is what is read', () => {
+  const wrapper = {
+    json: {
+      text: '',
+      extra: [
+        { text: 'Somewhere', font: 'hyperfarm:hud/boss_text' },
+        { text: 'Winter', font: 'hyperfarm:hud/clock_text' },
+      ],
+    },
+    text: '',
+    extra: [{ text: 'Somewhere' }, { text: 'Winter' }],
+  };
+
+  assert.deepEqual(toSegments(wrapper).map((piece) => [piece.text, piece.font]), [
+    ['Somewhere', 'hyperfarm:hud/boss_text'],
+    ['Winter', 'hyperfarm:hud/clock_text'],
+  ]);
+  assert.equal(toPlainText(wrapper), 'SomewhereWinter');
+});

@@ -19,6 +19,19 @@ interface NbtLike {
   value?: unknown;
 }
 
+/*
+prismarine hands over a ChatMessage, not the component the server sent. Its instance exposes text
+and extra, so the words come out, and keeps everything else -- font, colour, the nesting -- in a
+`json` property that nothing else reads. A boss bar built from labels in three different fonts
+therefore arrived with no fonts at all, and the font is the thing that says which number is which.
+The raw component is right there, so it is what gets walked.
+*/
+function rawComponent(value: object): unknown {
+  const wrapper = value as { json?: unknown };
+
+  return wrapper.json !== null && typeof wrapper.json === 'object' ? wrapper.json : undefined;
+}
+
 function isNbt(value: object): value is NbtLike {
   const nbt = value as NbtLike;
   return typeof nbt.type === 'string' && 'value' in nbt;
@@ -61,6 +74,11 @@ function walk(value: unknown): string {
 
   if (typeof value !== 'object') {
     return String(value);
+  }
+
+  const rawForWalk = rawComponent(value);
+  if (rawForWalk !== undefined) {
+    return walk(rawForWalk);
   }
 
   if (isNbt(value)) {
@@ -183,6 +201,12 @@ function collect(value: unknown, inherited: TextSegment, into: TextSegment[]): v
     return;
   }
 
+  const raw = rawComponent(value);
+  if (raw !== undefined) {
+    collect(raw, inherited, into);
+    return;
+  }
+
   if (isNbt(value)) {
     collect(value.value, inherited, into);
     return;
@@ -231,6 +255,26 @@ export function toSegments(value: unknown): TextSegment[] {
   return collected
     .map((segment) => ({ ...segment, text: stripCodes(segment.text.replace(GLYPHS, '')) }))
     .filter((segment) => segment.text.trim() !== '');
+}
+
+/*
+How many pieces held nothing but glyphs. On a HUD those are spacers and dropping them is right; on
+a display entity a piece made only of glyphs is an icon -- something is there and there is nothing
+to read -- which is a different thing from an empty display.
+*/
+export function glyphPieces(value: unknown): number {
+  const collected: TextSegment[] = [];
+  collect(value, { text: '', font: undefined, color: undefined }, collected);
+
+  return collected
+    .filter((segment) => segment.text.trim() !== '')
+    .filter((segment) => stripCodes(segment.text.replace(GLYPHS, '')).trim() === '')
+    .length;
+}
+
+/* The readable pieces joined, for the plain-text field a DTO keeps beside its segments. */
+export function plainSegments(segments: TextSegment[]): string {
+  return segments.map((segment) => segment.text).join(' ');
 }
 
 function shortFont(font: string): string {

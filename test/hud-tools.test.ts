@@ -89,14 +89,46 @@ test('a boss bar title arrives as NBT and its health becomes a progress fraction
       color: 'purple',
       dividers: 10,
     }),
-    { title: 'Wither', progress: 0.735, color: 'purple', dividers: 10 },
+    {
+      title: 'Wither',
+      progress: 0.735,
+      color: 'purple',
+      dividers: 10,
+      segments: [{ text: 'Wither', font: undefined, color: undefined }],
+    },
   );
+});
+
+/*
+A boss bar on a real server is stacked labels, the same as an action bar: a place, a date and a
+channel side by side. The pieces travel so that mcp-server can keep them apart -- joined into one
+string they read as one word, which is what a real one did.
+*/
+test('the pieces a boss bar title is built from travel with it', () => {
+  const bar = viewBossBar({
+    title: {
+      text: '',
+      extra: [
+        { text: 'Somewhere', font: 'hud/place_text' },
+        { text: 'Winter day 6', font: 'hud/clock_text' },
+      ],
+    },
+    health: 0,
+    color: 'yellow',
+    dividers: 0,
+  });
+
+  assert.equal(bar.title, 'Somewhere Winter day 6');
+  assert.deepEqual(bar.segments.map((piece) => [piece.text, piece.font]), [
+    ['Somewhere', 'hud/place_text'],
+    ['Winter day 6', 'hud/clock_text'],
+  ]);
 });
 
 test('a boss bar the server has not fully described still reads', () => {
   assert.deepEqual(
     viewBossBar({ health: 1 }),
-    { title: '', progress: 1, color: 'unknown', dividers: 0 },
+    { title: '', progress: 1, color: 'unknown', dividers: 0, segments: [] },
   );
 });
 

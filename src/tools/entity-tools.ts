@@ -1,7 +1,8 @@
 import * as z from 'zod';
 import type { Entity } from 'prismarine-entity';
 import { type ToolDefinition, defineTool, structured } from '../rpc/tool.ts';
-import { describeSegments, toSegments } from '../minecraft/text.ts';
+import type { TextSegment } from '../minecraft/text.ts';
+import { glyphPieces, plainSegments, toSegments } from '../minecraft/text.ts';
 import { customName, plainName } from '../minecraft/names.ts';
 import { blockPoint } from '../minecraft/view.ts';
 import type { Point } from '../minecraft/view.ts';
@@ -24,6 +25,8 @@ export interface DisplayView {
   entity: string;
   position: Point;
   distance: number;
+  segments: TextSegment[];
+  glyphPieces: number;
 }
 
 export interface DisplaysView {
@@ -92,10 +95,17 @@ NPC labels with them, so without this they show up as "text_display" and nothing
 */
 const DISPLAY_TEXT_SLOT = 23;
 
-function displayText(entity: Entity): string {
+function displayed(entity: Entity): { segments: TextSegment[]; glyphPieces: number; text: string } {
   const metadata = (entity as unknown as { metadata?: Record<number, unknown> }).metadata ?? {};
+  const raw = metadata[DISPLAY_TEXT_SLOT];
+  const segments = toSegments(raw);
+  const named = customName(entity);
 
-  return describeSegments(toSegments(metadata[DISPLAY_TEXT_SLOT])) || (customName(entity) ?? '');
+  if (segments.length === 0 && named !== null) {
+    return { segments: [{ text: named, font: undefined, color: undefined }], glyphPieces: 0, text: named };
+  }
+
+  return { segments, glyphPieces: glyphPieces(raw), text: plainSegments(segments) };
 }
 
 export const displayTools: ToolDefinition[] = [
@@ -115,20 +125,27 @@ export const displayTools: ToolDefinition[] = [
         .filter((entity) => entity !== bot.entity)
         .map((entity) => ({
           entity,
-          text: displayText(entity),
+          said: displayed(entity),
           distance: bot.entity.position.distanceTo(entity.position),
         }))
-        .filter((one) => one.text !== '' && one.distance <= maxDistance)
+        /*
+        A display drawn only from glyphs is an icon and is kept: something is there. Dropping it for
+        having no readable text hid a real server's nameplates entirely, while the other kind of bot
+        reported them, and the two disagreed about how many things were floating in the same spot.
+        */
+        .filter((one) => (one.said.text !== '' || one.said.glyphPieces > 0) && one.distance <= maxDistance)
         .sort((a, b) => a.distance - b.distance)
         .slice(0, args.count ?? 20);
 
       return structured(`${found.length} displayed`, {
         maxDistance,
-        displays: found.map(({ entity, text, distance }) => ({
-          text,
+        displays: found.map(({ entity, said, distance }) => ({
+          text: said.text,
           entity: entity.name ?? entity.type,
           position: blockPoint(entity.position),
           distance,
+          segments: said.segments,
+          glyphPieces: said.glyphPieces,
         })),
       } satisfies DisplaysView);
     },

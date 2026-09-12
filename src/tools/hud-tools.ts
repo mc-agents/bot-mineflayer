@@ -1,7 +1,8 @@
 import * as z from 'zod';
 import type { BossBar, Bot, ScoreBoard } from 'mineflayer';
 import { type ToolDefinition, defineTool, structured } from '../rpc/tool.ts';
-import { describeSegments, toPlainText, toSegments } from '../minecraft/text.ts';
+import type { TextSegment } from '../minecraft/text.ts';
+import { plainSegments, toPlainText, toSegments } from '../minecraft/text.ts';
 import { blockPoint } from '../minecraft/view.ts';
 import type { Point } from '../minecraft/view.ts';
 
@@ -50,6 +51,7 @@ export interface BossBarView {
   progress: number;
   color: string;
   dividers: number;
+  segments: TextSegment[];
 }
 
 export interface PlayerView {
@@ -94,9 +96,17 @@ export function viewScoreboard(board: ScoreboardLike): ScoreboardView {
   return { title: toPlainText(board.title), entries };
 }
 
+/*
+A boss bar is stacked labels on a real server, the same as an action bar: a place, a date and a
+channel side by side read as one word when they are joined into a string. The pieces travel and
+mcp-server writes the line.
+*/
 export function viewBossBar(bar: BossBarLike): BossBarView {
+  const segments = toSegments(bar.title);
+
   return {
-    title: describeSegments(toSegments(bar.title)),
+    title: plainSegments(segments),
+    segments,
     progress: bar.health ?? 0,
     color: bar.color ?? 'unknown',
     dividers: bar.dividers ?? 0,
