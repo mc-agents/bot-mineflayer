@@ -1,6 +1,6 @@
 {
   "name": "bot-mineflayer",
-  "version": "0.21.0",
+  "version": "0.21.1",
   "description": "Mineflayer bot that speaks the mc-agents bot protocol",
   "license": "MIT",
   "type": "module",
